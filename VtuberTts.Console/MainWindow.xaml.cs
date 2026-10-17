@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -20,6 +21,8 @@ namespace VtuberTts.Console
         private bool _isPlaying = false;
         private bool _isPaused = false;
         private string _fullPlainText = string.Empty;
+        /// <summary>Flag para ignorar TextChanged cuando el cambio es programático (resaltado de segmento).</summary>
+        private bool _isHighlighting = false;
 
         public MainWindow()
         {
@@ -92,7 +95,17 @@ namespace VtuberTts.Console
 
         private void RtbInput_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (!_isPlaying)
+            // Ignorar cambios programáticos del resaltado de segmentos durante la reproducción
+            if (_isHighlighting) return;
+
+            if (_isPlaying)
+            {
+                // El usuario editó el texto manualmente durante la reproducción → detener
+                _isPlaying = false;
+                _voiceManager.StopAudio();
+                ResetToNeutralState();
+            }
+            else
             {
                 _fullPlainText = GetPlainTextFromRichTextBox();
                 UpdateCharCount();
@@ -130,7 +143,6 @@ namespace VtuberTts.Console
 
             _isPlaying = true;
             _currentSegmentIndex = 0;
-            RtbInput.IsReadOnly = true; // Bloquear edición durante reproducción
 
             BtnPlay.Visibility = Visibility.Collapsed;
             PanelPauseStop.Visibility = Visibility.Visible;
@@ -160,7 +172,7 @@ namespace VtuberTts.Console
 
                 string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"segment_{_currentSegmentIndex}.wav");
                 await _voiceManager.SynthesizeSpeechAsync(segment.Text, tempPath, selectedVoice, selectedLang, speed, pitch);
-                
+
                 _voiceManager.PlayAudio(tempPath, volume);
 
                 // Esperar a que termine el audio del segmento actual o se interrumpa por clic
@@ -192,24 +204,32 @@ namespace VtuberTts.Console
 
         private void HighlightSegment(int activeIndex)
         {
-            RtbInput.Document.Blocks.Clear();
-            Paragraph p = new Paragraph();
-
-            for (int i = 0; i < _segments.Count; i++)
+            _isHighlighting = true;
+            try
             {
-                Run run = new Run(_segments[i].Text + " ");
-                if (i == activeIndex)
+                RtbInput.Document.Blocks.Clear();
+                Paragraph p = new Paragraph();
+
+                for (int i = 0; i < _segments.Count; i++)
                 {
-                    run.Background = new SolidColorBrush(Color.FromArgb(90, 124, 58, 237)); // Morado resaltado activo
-                    run.Foreground = Brushes.White;
+                    Run run = new Run(_segments[i].Text + " ");
+                    if (i == activeIndex)
+                    {
+                        run.Background = new SolidColorBrush(Color.FromArgb(90, 124, 58, 237)); // Morado resaltado activo
+                        run.Foreground = Brushes.White;
+                    }
+                    else
+                    {
+                        run.Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
+                    }
+                    p.Inlines.Add(run);
                 }
-                else
-                {
-                    run.Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
-                }
-                p.Inlines.Add(run);
+                RtbInput.Document.Blocks.Add(p);
             }
-            RtbInput.Document.Blocks.Add(p);
+            finally
+            {
+                _isHighlighting = false;
+            }
         }
 
         private void RtbInput_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -220,8 +240,11 @@ namespace VtuberTts.Console
                 TextPointer pointer = RtbInput.GetPositionFromPoint(e.GetPosition(RtbInput), true);
                 if (pointer != null)
                 {
-                    // Calcular el desplazamiento en caracteres respecto al inicio del documento
-                    int charOffset = RtbInput.Document.ContentStart.GetOffsetToPosition(pointer);
+                    // CORRECCIÓN: usar TextRange para obtener el desplazamiento real en caracteres
+                    // GetOffsetToPosition devuelve un offset del árbol WPF (no caracteres planos)
+                    TextRange rangeToPointer = new TextRange(RtbInput.Document.ContentStart, pointer);
+                    int charOffset = rangeToPointer.Text.Length;
+
                     int targetIndex = 0;
                     int minDistance = int.MaxValue;
 
@@ -298,11 +321,18 @@ namespace VtuberTts.Console
                 BtnPause.Content = "⏸";
                 LblEmotionEmoji.Text = "😐";
                 LblEmotionName.Text = "Neutral";
-                RtbInput.IsReadOnly = false;
 
-                // Restaurar texto completo conservando lo ingresado por el usuario
-                RtbInput.Document.Blocks.Clear();
-                RtbInput.Document.Blocks.Add(new Paragraph(new Run(_fullPlainText)));
+                // Restaurar el texto plano sin colores de resaltado
+                _isHighlighting = true;
+                try
+                {
+                    RtbInput.Document.Blocks.Clear();
+                    RtbInput.Document.Blocks.Add(new Paragraph(new Run(_fullPlainText)));
+                }
+                finally
+                {
+                    _isHighlighting = false;
+                }
             });
         }
 
@@ -338,6 +368,83 @@ namespace VtuberTts.Console
                 {
                     MessageBox.Show($"Error al guardar el archivo: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+
+        private async void BtnSegmentedDownload_Click(object sender, RoutedEventArgs e)
+        {
+            string text = GetPlainTextFromRichTextBox();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                MessageBox.Show("No hay texto para exportar.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Seleccionar carpeta de destino usando el nombre completo para evitar conflictos
+            using var folderDialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Selecciona la carpeta donde guardar los segmentos de audio",
+                UseDescriptionForTitle = true,
+                SelectedPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
+            };
+
+            if (folderDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+
+            string outputFolder = folderDialog.SelectedPath;
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+
+            var segments = EmotionAnalyzer.SegmentAndAnalyze(text);
+            if (segments.Count == 0) return;
+
+            string selectedLang  = CbLanguage.SelectedItem?.ToString() ?? "es-ES";
+            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
+            float speed = (float)SliderSpeed.Value;
+            float pitch = (float)SliderPitch.Value;
+
+            BtnSegmentedDownload.IsEnabled = false;
+            BtnDownloadAudio.IsEnabled    = false;
+
+            try
+            {
+                var jsonEntries = new List<object>();
+
+                for (int i = 0; i < segments.Count; i++)
+                {
+                    var seg = segments[i];
+                    string fileName = $"segment_{i + 1:D3}_{timestamp}.wav";
+                    string filePath = Path.Combine(outputFolder, fileName);
+
+                    await _voiceManager.SynthesizeSpeechAsync(seg.Text.Trim(), filePath, selectedVoice, selectedLang, speed, pitch);
+
+                    jsonEntries.Add(new
+                    {
+                        index    = i + 1,
+                        file     = fileName,
+                        text     = seg.Text.Trim(),
+                        emotion  = seg.Emotion,
+                        emoji    = seg.Emoji,
+                        startIndex = seg.StartIndex,
+                        length   = seg.Length
+                    });
+                }
+
+                // Guardar metadata JSON con info de emociones para el avatar VTuber
+                string jsonPath = Path.Combine(outputFolder, $"segments_{timestamp}.json");
+                string jsonContent = JsonSerializer.Serialize(jsonEntries, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(jsonPath, jsonContent);
+
+                MessageBox.Show(
+                    $"Exportación completada:\n• {segments.Count} archivos WAV\n• 1 archivo JSON con emociones\n\nCarpeta: {outputFolder}",
+                    "Descarga segmentada exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error durante la exportación: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                BtnSegmentedDownload.IsEnabled = true;
+                BtnDownloadAudio.IsEnabled    = true;
             }
         }
     }
