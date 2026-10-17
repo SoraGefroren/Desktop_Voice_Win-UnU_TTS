@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="VtuberTts.Console/VtuberTts.Console.csproj" />
+  <Project Path="VtuberTts.Core/VtuberTts.Core.csproj" />
+</Solution>
