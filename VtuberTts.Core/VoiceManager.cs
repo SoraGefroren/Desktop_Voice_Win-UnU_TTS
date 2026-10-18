@@ -1,10 +1,10 @@
 using System;
-using System.IO;
-using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using Windows.Media.SpeechSynthesis;
+using System.Threading.Tasks;
 using NAudio.Wave;
+using Windows.Media.SpeechSynthesis;
 
 namespace VtuberTts.Core
 {
@@ -35,7 +35,8 @@ namespace VtuberTts.Core
         {
             return SpeechSynthesizer.AllVoices
                 .Where(v => string.IsNullOrEmpty(language) ||
-                            v.Language.Equals(language, StringComparison.OrdinalIgnoreCase))
+                            v.Language.Equals(language, StringComparison.OrdinalIgnoreCase) ||
+                            v.Language.StartsWith(language + "-", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(v => IsOnlineVoice(v) ? 0 : 1) // Online primero
                 .ThenBy(v => v.DisplayName)
                 .Select(v =>
@@ -99,8 +100,8 @@ namespace VtuberTts.Core
             // AudioPitch:   rango [0.0, 2.0] — 1.0 = normal
             // AudioVolume:  rango [0.0, 1.0] — 1.0 = máximo
             synthesizer.Options.SpeakingRate = Math.Clamp(speed, 0.5, 6.0);
-            synthesizer.Options.AudioPitch   = Math.Clamp(pitch, 0.0, 2.0);
-            synthesizer.Options.AudioVolume  = Math.Clamp(volume, 0.0, 1.0);
+            synthesizer.Options.AudioPitch = Math.Clamp(pitch, 0.0, 2.0);
+            synthesizer.Options.AudioVolume = Math.Clamp(volume, 0.0, 1.0);
 
             string langCode = string.IsNullOrEmpty(language) ? "es-ES" : language;
             string encodedText = System.Net.WebUtility.HtmlEncode(text);
@@ -143,7 +144,7 @@ namespace VtuberTts.Core
 
         public void PauseAudio() => _waveOutDevice?.Pause();
         public void ResumeAudio() => _waveOutDevice?.Play();
-        
+
         public void StopAudio()
         {
             try
