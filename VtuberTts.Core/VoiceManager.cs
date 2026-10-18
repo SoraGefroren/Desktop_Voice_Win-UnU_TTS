@@ -12,6 +12,7 @@ namespace VtuberTts.Core
     {
         private IWavePlayer? _waveOutDevice;
         private AudioFileReader? _audioFileReader;
+        private readonly KokoroVoiceEngine _kokoro = new();
         public bool IsPlaying => _waveOutDevice?.PlaybackState == PlaybackState.Playing;
 
         /// <summary>
@@ -20,9 +21,14 @@ namespace VtuberTts.Core
         /// </summary>
         public List<string> GetAvailableLanguages()
         {
+            var kokoroLanguages = _kokoro.IsAvailable
+                ? KokoroVoiceEngine.Catalog.Select(v => v.Language)
+                : Enumerable.Empty<string>();
+
             return SpeechSynthesizer.AllVoices
                 .Select(v => v.Language)
-                .Distinct()
+                .Concat(kokoroLanguages)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(l => l)
                 .ToList();
         }
@@ -33,7 +39,7 @@ namespace VtuberTts.Core
         /// </summary>
         public List<string> GetVoicesForLanguage(string language)
         {
-            return SpeechSynthesizer.AllVoices
+            var windowsVoices = SpeechSynthesizer.AllVoices
                 .Where(v => string.IsNullOrEmpty(language) ||
                             v.Language.Equals(language, StringComparison.OrdinalIgnoreCase) ||
                             v.Language.StartsWith(language + "-", StringComparison.OrdinalIgnoreCase))
@@ -45,6 +51,14 @@ namespace VtuberTts.Core
                     return v.DisplayName + typeLabel;
                 })
                 .ToList();
+
+            if (!_kokoro.IsAvailable) return windowsVoices;
+
+            var kokoroVoices = KokoroVoiceEngine.Catalog
+                .Where(v => KokoroVoiceEngine.MatchesLanguage(v, language))
+                .Select(v => v.DisplayName);
+
+            return windowsVoices.Concat(kokoroVoices).ToList();
         }
 
         /// <summary>
@@ -78,6 +92,14 @@ namespace VtuberTts.Core
         /// <param name="volume">Volumen de síntesis: 0.0 (silencio) a 1.0 (máximo).</param>
         public async Task<string> SynthesizeSpeechAsync(string text, string outputPath, string selectedVoiceName = "", string language = "", float speed = 1.0f, float pitch = 1.0f, float volume = 1.0f)
         {
+            // Las voces Kokoro se sintetizan con su propio motor (el tono no es soportado por Kokoro)
+            var kokoroVoice = _kokoro.FindVoice(selectedVoiceName);
+            if (kokoroVoice != null)
+            {
+                await _kokoro.SynthesizeToWavAsync(text, outputPath, kokoroVoice, speed, volume);
+                return outputPath;
+            }
+
             using var synthesizer = new SpeechSynthesizer();
 
             // Extraer el nombre base eliminando el sufijo "(Online)" / "(Local)" si viene del ComboBox

@@ -8,7 +8,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.0" />
+    <PackageReference Include="MisakiSharp" Version="2.1.1" />
     <PackageReference Include="NAudio" Version="*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\__Models\kokoro-v1.0.onnx" Link="__Models\kokoro-v1.0.onnx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\__Models\voices-v1.0.bin" Link="__Models\voices-v1.0.bin" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

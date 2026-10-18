@@ -16,6 +16,9 @@ bld/
 [Ll]ogs/
 [Pp]ublish/
 
+# ── Model directories ─────────────────────────────────────────
+.__Models/*
+
 # ── Visual Studio user and workspace settings ──────────────────
 .vs/
 *.user
