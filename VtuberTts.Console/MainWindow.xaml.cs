@@ -23,6 +23,8 @@ namespace VtuberTts.Console
         private string _fullPlainText = string.Empty;
         /// <summary>Flag para ignorar TextChanged cuando el cambio es programático (resaltado de segmento).</summary>
         private bool _isHighlighting = false;
+        /// <summary>Flag que indica si el usuario hizo clic en un segmento para forzar un salto inmediato.</summary>
+        private bool _jumpRequested = false;
 
         public MainWindow()
         {
@@ -143,6 +145,7 @@ namespace VtuberTts.Console
 
             _isPlaying = true;
             _currentSegmentIndex = 0;
+            _jumpRequested = false;
 
             BtnPlay.Visibility = Visibility.Collapsed;
             PanelPauseStop.Visibility = Visibility.Visible;
@@ -161,40 +164,53 @@ namespace VtuberTts.Console
 
             while (_currentSegmentIndex < _segments.Count && _isPlaying)
             {
-                var segment = _segments[_currentSegmentIndex];
+                _jumpRequested = false;
+                int activeIndex = _currentSegmentIndex;
+                var segment = _segments[activeIndex];
 
                 // Actualizar emoción y rostro visual
                 LblEmotionEmoji.Text = segment.Emoji;
                 LblEmotionName.Text = segment.Emotion;
 
                 // Resaltar texto activo en el RichTextBox
-                HighlightSegment(_currentSegmentIndex);
+                HighlightSegment(activeIndex);
 
-                string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"segment_{_currentSegmentIndex}.wav");
+                string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"segment_{activeIndex}.wav");
                 await _voiceManager.SynthesizeSpeechAsync(segment.Text, tempPath, selectedVoice, selectedLang, speed, pitch, volume);
+
+                // Si dieron Stop o hubo un clic en otro segmento durante la síntesis, no reproducir audio viejo
+                if (!_isPlaying) break;
+                if (_jumpRequested) continue;
 
                 _voiceManager.PlayAudio(tempPath, volume);
 
-                // Esperar a que termine el audio del segmento actual o se interrumpa por clic
+                // Esperar a que termine el audio del segmento actual o se interrumpa por clic o stop
                 await Task.Delay(300);
-                while (_voiceManager.IsPlaying && !_isPaused && _isPlaying)
+                while (_voiceManager.IsPlaying && !_isPaused && _isPlaying && !_jumpRequested)
                 {
                     await Task.Delay(100);
                 }
 
                 if (!_isPlaying) break; // Si dieron Stop
 
+                // Si el usuario hizo clic en un segmento, saltar de inmediato sin incrementar _currentSegmentIndex
+                if (_jumpRequested)
+                {
+                    continue;
+                }
+
                 if (_isPaused)
                 {
-                    // Mantener el bucle en pausa hasta que reanuden
-                    while (_isPaused && _isPlaying)
+                    // Mantener el bucle en pausa hasta que reanuden o cliquen otro segmento
+                    while (_isPaused && _isPlaying && !_jumpRequested)
                     {
                         await Task.Delay(100);
                     }
                     if (!_isPlaying) break;
+                    if (_jumpRequested) continue;
                 }
 
-                // Avanzar al siguiente segmento automáticamente (a menos que un clic haya cambiado _currentSegmentIndex)
+                // Avanzar al siguiente segmento automáticamente solo si no hubo un salto manual
                 _currentSegmentIndex++;
             }
 
@@ -212,7 +228,10 @@ namespace VtuberTts.Console
 
                 for (int i = 0; i < _segments.Count; i++)
                 {
-                    Run run = new Run(_segments[i].Text + " ");
+                    Run run = new Run(_segments[i].Text + " ")
+                    {
+                        Tag = i
+                    };
                     if (i == activeIndex)
                     {
                         run.Background = new SolidColorBrush(Color.FromArgb(90, 124, 58, 237)); // Morado resaltado activo
@@ -237,39 +256,59 @@ namespace VtuberTts.Console
             if (_isPlaying && _segments.Count > 0)
             {
                 // Obtener la posición exacta del cursor donde se hizo clic en el RichTextBox
-                TextPointer pointer = RtbInput.GetPositionFromPoint(e.GetPosition(RtbInput), true);
+                Point mousePos = e.GetPosition(RtbInput);
+                TextPointer pointer = RtbInput.GetPositionFromPoint(mousePos, true);
                 if (pointer != null)
                 {
-                    // CORRECCIÓN: usar TextRange para obtener el desplazamiento real en caracteres
-                    // GetOffsetToPosition devuelve un offset del árbol WPF (no caracteres planos)
-                    TextRange rangeToPointer = new TextRange(RtbInput.Document.ContentStart, pointer);
-                    int charOffset = rangeToPointer.Text.Length;
+                    int targetIndex = -1;
 
-                    int targetIndex = 0;
-                    int minDistance = int.MaxValue;
-
-                    // Encontrar el segmento correspondiente al clic
-                    for (int i = 0; i < _segments.Count; i++)
+                    // Método 1: Detección directa mediante el Tag del Run cliceado
+                    if (pointer.Parent is Run directRun && directRun.Tag is int tagIdx)
                     {
-                        int start = _segments[i].StartIndex;
-                        int end = start + _segments[i].Length;
-
-                        if (charOffset >= start && charOffset <= end)
+                        targetIndex = tagIdx;
+                    }
+                    else
+                    {
+                        var adjacentRun = pointer.GetAdjacentElement(LogicalDirection.Forward) as Run
+                                          ?? pointer.GetAdjacentElement(LogicalDirection.Backward) as Run;
+                        if (adjacentRun?.Tag is int adjIdx)
                         {
-                            targetIndex = i;
-                            break;
-                        }
-
-                        int distance = Math.Min(Math.Abs(charOffset - start), Math.Abs(charOffset - end));
-                        if (distance < minDistance)
-                        {
-                            minDistance = distance;
-                            targetIndex = i;
+                            targetIndex = adjIdx;
                         }
                     }
 
-                    // Actualizar el índice del segmento y detener el reproductor actual para forzar el salto inmediato
+                    // Método 2 (Fallback): Si no se encontró por Tag, calcular por offset de caracteres
+                    if (targetIndex < 0 || targetIndex >= _segments.Count)
+                    {
+                        TextRange rangeToPointer = new TextRange(RtbInput.Document.ContentStart, pointer);
+                        int charOffset = rangeToPointer.Text.Length;
+
+                        int minDistance = int.MaxValue;
+                        targetIndex = 0;
+
+                        for (int i = 0; i < _segments.Count; i++)
+                        {
+                            int start = _segments[i].StartIndex;
+                            int end = start + _segments[i].Length;
+
+                            if (charOffset >= start && charOffset <= end)
+                            {
+                                targetIndex = i;
+                                break;
+                            }
+
+                            int distance = Math.Min(Math.Abs(charOffset - start), Math.Abs(charOffset - end));
+                            if (distance < minDistance)
+                            {
+                                minDistance = distance;
+                                targetIndex = i;
+                            }
+                        }
+                    }
+
+                    // Establecer el segmento elegido y marcar solicitud de salto para evitar _currentSegmentIndex++
                     _currentSegmentIndex = targetIndex;
+                    _jumpRequested = true;
                     _voiceManager.StopAudio();
 
                     // Si estaba en pausa, reanudar automáticamente al hacer clic en el texto
@@ -312,6 +351,7 @@ namespace VtuberTts.Console
         {
             _isPlaying = false;
             _isPaused = false;
+            _jumpRequested = false;
             _currentSegmentIndex = 0;
 
             Dispatcher.Invoke(() =>
