@@ -29,7 +29,7 @@ namespace VtuberTts.Console
             _voiceManager = new VoiceManager();
             InitializeComponent();
             LoadLanguages();
-            SetInitialText("¡Bienvenido al sistema de conversión de texto a voz! Aquí puedes escribir cualquier texto y convertirlo en audio usando diferentes voces e idiomas disponibles. También puedes ajustar la velocidad, el tono y el volumen de la voz para personalizar tu experiencia. ¡Escribe algo y pruébalo!");
+            SetInitialText("Hola. ¡Bienvenido al sistema de conversión de texto a voz! Aquí puedes escribir cualquier texto y convertirlo en audio usando diferentes voces e idiomas disponibles. También, puedes ajustar la velocidad, el tono y el volumen de la voz para personalizar tu experiencia. ¡Escribe algo y pruébalo!");
         }
 
         private void SetInitialText(string text)
@@ -171,7 +171,7 @@ namespace VtuberTts.Console
                 HighlightSegment(_currentSegmentIndex);
 
                 string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"segment_{_currentSegmentIndex}.wav");
-                await _voiceManager.SynthesizeSpeechAsync(segment.Text, tempPath, selectedVoice, selectedLang, speed, pitch);
+                await _voiceManager.SynthesizeSpeechAsync(segment.Text, tempPath, selectedVoice, selectedLang, speed, pitch, volume);
 
                 _voiceManager.PlayAudio(tempPath, volume);
 
@@ -360,8 +360,9 @@ namespace VtuberTts.Console
                     string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
                     float speed = (float)SliderSpeed.Value;
                     float pitch = (float)SliderPitch.Value;
+                    float volume = (float)(SliderVolume.Value / 100.0);
 
-                    await _voiceManager.SynthesizeSpeechAsync(text, saveFileDialog.FileName, selectedVoice, selectedLang, speed, pitch);
+                    await _voiceManager.SynthesizeSpeechAsync(text, saveFileDialog.FileName, selectedVoice, selectedLang, speed, pitch, volume);
                     MessageBox.Show("Audio guardado exitosamente en Descargas.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
@@ -414,7 +415,7 @@ namespace VtuberTts.Console
                     string fileName = $"segment_{i + 1:D3}_{timestamp}.wav";
                     string filePath = Path.Combine(outputFolder, fileName);
 
-                    await _voiceManager.SynthesizeSpeechAsync(seg.Text.Trim(), filePath, selectedVoice, selectedLang, speed, pitch);
+                    await _voiceManager.SynthesizeSpeechAsync(seg.Text.Trim(), filePath, selectedVoice, selectedLang, speed, pitch, (float)(SliderVolume.Value / 100.0));
 
                     jsonEntries.Add(new
                     {
