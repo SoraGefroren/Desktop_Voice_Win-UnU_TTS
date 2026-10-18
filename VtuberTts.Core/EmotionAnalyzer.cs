@@ -19,14 +19,14 @@ namespace VtuberTts.Core
             var segments = new List<TextSegment>();
             if (string.IsNullOrWhiteSpace(fullText)) return segments;
 
-            char[] delimiters = { '.', '!', '?', '\n' };
+            char[] punctuation = { '.', '!', '?' };
             int i = 0;
             int n = fullText.Length;
 
             while (i < n)
             {
-                // Saltar espacios y caracteres de control en blanco antes del inicio de la oración
-                while (i < n && (fullText[i] == ' ' || fullText[i] == '\t' || fullText[i] == '\r'))
+                // Saltar espacios y saltos de línea en blanco antes de la siguiente oración
+                while (i < n && char.IsWhiteSpace(fullText[i]))
                 {
                     i++;
                 }
@@ -35,28 +35,30 @@ namespace VtuberTts.Core
 
                 int segmentStart = i;
 
-                // Avanzar mientras no encontremos un delimitador
-                while (i < n && Array.IndexOf(delimiters, fullText[i]) < 0)
+                // Avanzar mientras no encontremos puntuación terminal (., !, ?) ni salto de línea (\n)
+                while (i < n && Array.IndexOf(punctuation, fullText[i]) < 0 && fullText[i] != '\n')
                 {
                     i++;
                 }
 
-                // Si encontramos uno o varios delimitadores consecutivos (ej. "...", "?!", "!?", ".\n", "\r\n"),
-                // los incluimos en este segmento para preservar la puntuación, visibilidad y entonación.
-                while (i < n && (Array.IndexOf(delimiters, fullText[i]) >= 0 || fullText[i] == '\r'))
+                // Si encontramos puntuación terminal (., !, ?), incluirla (incluyendo signos múltiples: "...", "?!", "!!")
+                if (i < n && Array.IndexOf(punctuation, fullText[i]) >= 0)
                 {
-                    i++;
+                    while (i < n && Array.IndexOf(punctuation, fullText[i]) >= 0)
+                    {
+                        i++;
+                    }
                 }
 
                 int length = i - segmentStart;
-                string part = fullText.Substring(segmentStart, length);
+                string part = fullText.Substring(segmentStart, length).TrimEnd('\r');
 
                 if (!string.IsNullOrWhiteSpace(part))
                 {
                     var evaluated = EvaluateEmotion(part);
                     segments.Add(new TextSegment
                     {
-                        Text = part.TrimEnd('\r'), // Quitar \r de Windows al final, pero preservar '.', '!', '?', '\n'
+                        Text = part,
                         StartIndex = segmentStart,
                         Length = length,
                         Emotion = evaluated.Emotion,

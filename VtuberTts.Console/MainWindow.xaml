@@ -1,8 +1,118 @@
 <Window x:Class="VtuberTts.Console.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="TTS Studio" Height="620" Width="950" 
+        Title="TTS Studio" Height="650" Width="980" MinHeight="550" MinWidth="800"
         Background="#0f1117" Foreground="White" WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <!-- Estilo personalizado para ComboBoxItem con tema oscuro y resaltado en morado -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#e2e8f0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemBorder" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" Margin="2,1">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#30363d"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#6d28d9"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Template del ToggleButton del ComboBox (caja cerrada y flecha) -->
+        <ControlTemplate x:Key="ComboBoxToggleButtonTemplate" TargetType="ToggleButton">
+            <Border x:Name="Border" Background="#21262d" BorderBrush="#30363d" BorderThickness="1" CornerRadius="6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="30"/>
+                    </Grid.ColumnDefinitions>
+                    <Path x:Name="Arrow" Grid.Column="1" Data="M 0 0 L 4 4 L 8 0 Z" Fill="#94a3b8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Border" Property="BorderBrush" Value="#6d28d9"/>
+                    <Setter TargetName="Arrow" Property="Fill" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="Border" Property="BorderBrush" Value="#7c3aed"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!-- Estilo completo del ComboBox para asegurar fondo oscuro en reposo y en el menú desplegable -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#21262d"/>
+            <Setter Property="BorderBrush" Value="#30363d"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Name="ToggleButton" Template="{StaticResource ComboBoxToggleButtonTemplate}" 
+                                          Focusable="False" IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" 
+                                          ClickMode="Press"/>
+                            <ContentPresenter Name="ContentSite" IsHitTestVisible="False" 
+                                              Content="{TemplateBinding SelectionBoxItem}" 
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" 
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" 
+                                              Margin="12,0,30,0" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                            <TextBox x:Name="PART_EditableTextBox" Style="{x:Null}" Template="{x:Null}" 
+                                     HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,30,0" 
+                                     Focusable="True" Background="Transparent" Foreground="White" Visibility="Hidden" IsReadOnly="{TemplateBinding IsReadOnly}"/>
+                            <Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" 
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide" MaxHeight="260">
+                                <Grid Name="DropDown" SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="260">
+                                    <Border x:Name="DropDownBorder" Background="#161b22" BorderThickness="1" BorderBrush="#30363d" CornerRadius="6" Padding="4" Margin="0,4,0,0">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="10" ShadowDepth="4" Opacity="0.5"/>
+                                        </Border.Effect>
+                                        <ScrollViewer SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained" />
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="DropDownBorder" Property="MinHeight" Value="60"/>
+                            </Trigger>
+                            <Trigger Property="IsGrouping" Value="True">
+                                <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
+                            </Trigger>
+                            <Trigger Property="IsEditable" Value="True">
+                                <Setter Property="IsTabStop" Value="False"/>
+                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     
     <Grid>
         <Grid.RowDefinitions>
@@ -10,7 +120,6 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Barra Superior con Botón Play / Pause / Stop Dinámico -->
         <!-- Barra Superior con Botón Play / Pause / Stop y Monitor de Emoción -->
         <Grid Background="#6d28d9" Grid.Row="0">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0">
@@ -37,63 +146,76 @@
         <!-- Cuerpo Principal -->
         <Grid Grid.Row="1" Margin="15">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280"/>
+                <ColumnDefinition Width="290"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Panel Izquierdo: Controles -->
+            <!-- Panel Izquierdo: Controles y Descargas -->
             <Border Background="#161b22" CornerRadius="8" Padding="15" Margin="0,0,15,0">
-                <StackPanel>
-                    <TextBlock Text="🌐 Idioma" FontWeight="SemiBold" Foreground="#cbd5e1" Margin="0,0,0,5"/>
-                    <ComboBox x:Name="CbLanguage" Height="32" Background="#21262d" Foreground="White" SelectionChanged="CbLanguage_SelectionChanged" Margin="0,0,0,15"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <!-- Selector de Idioma -->
+                        <TextBlock Text="🌐 Idioma" FontWeight="SemiBold" Foreground="#cbd5e1" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="CbLanguage" Height="34" SelectionChanged="CbLanguage_SelectionChanged" Margin="0,0,0,15"/>
 
-                    <TextBlock Text="🎙 Voz" FontWeight="SemiBold" Foreground="#cbd5e1" Margin="0,0,0,5"/>
-                    <ComboBox x:Name="CbVoices" Height="32" Background="#21262d" Foreground="White" Margin="0,0,0,15"/>
+                        <!-- Selector de Voz -->
+                        <TextBlock Text="🎙 Voz" FontWeight="SemiBold" Foreground="#cbd5e1" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="CbVoices" Height="34" Margin="0,0,0,15"/>
 
-                    <Grid Margin="0,0,0,5">
-                        <TextBlock Text="⚡ Velocidad" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
-                        <TextBlock x:Name="LblSpeed" Text="1.0x" Foreground="#38bdf8" HorizontalAlignment="Right" FontWeight="Bold"/>
-                    </Grid>
-                    <Slider x:Name="SliderSpeed" Minimum="0.5" Maximum="2.0" Value="1.0" TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="SliderSpeed_ValueChanged" Margin="0,0,0,15"/>
+                        <!-- Control de Velocidad -->
+                        <Grid Margin="0,0,0,5">
+                            <TextBlock Text="⚡ Velocidad" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="LblSpeed" Text="1.0x" Foreground="#38bdf8" HorizontalAlignment="Right" FontWeight="Bold"/>
+                        </Grid>
+                        <Slider x:Name="SliderSpeed" Minimum="0.5" Maximum="2.0" Value="1.0" TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="SliderSpeed_ValueChanged" Margin="0,0,0,15"/>
 
-                    <Grid Margin="0,0,0,5">
-                        <TextBlock Text="🎵 Tono" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
-                        <TextBlock x:Name="LblPitch" Text="1.0" Foreground="#38bdf8" HorizontalAlignment="Right" FontWeight="Bold"/>
-                    </Grid>
-                    <Slider x:Name="SliderPitch" Minimum="0.5" Maximum="1.5" Value="1.0" TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="SliderPitch_ValueChanged" Margin="0,0,0,15"/>
+                        <!-- Control de Tono -->
+                        <Grid Margin="0,0,0,5">
+                            <TextBlock Text="🎵 Tono" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="LblPitch" Text="1.0" Foreground="#38bdf8" HorizontalAlignment="Right" FontWeight="Bold"/>
+                        </Grid>
+                        <Slider x:Name="SliderPitch" Minimum="0.5" Maximum="1.5" Value="1.0" TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="SliderPitch_ValueChanged" Margin="0,0,0,15"/>
 
-                    <Grid Margin="0,0,0,5">
-                        <TextBlock Text="🔊 Volumen" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
-                        <TextBlock x:Name="LblVolume" Text="100%" Foreground="#38bdf8" HorizontalAlignment="Right" FontWeight="Bold"/>
-                    </Grid>
-                    <Slider x:Name="SliderVolume" Minimum="0" Maximum="100" Value="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SliderVolume_ValueChanged" Margin="0,0,0,5"/>
-                </StackPanel>
+                        <!-- Control de Volumen -->
+                        <Grid Margin="0,0,0,5">
+                            <TextBlock Text="🔊 Volumen" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="LblVolume" Text="100%" Foreground="#38bdf8" HorizontalAlignment="Right" FontWeight="Bold"/>
+                        </Grid>
+                        <Slider x:Name="SliderVolume" Minimum="0" Maximum="100" Value="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SliderVolume_ValueChanged" Margin="0,0,0,20"/>
+
+                        <!-- Línea Divisoria -->
+                        <Border Height="1" Background="#30363d" Margin="0,0,0,15"/>
+
+                        <!-- Botones de Descarga integrados en el Panel Izquierdo -->
+                        <Button x:Name="BtnDownloadAudio" Content="📥 Descargar como Audio" Background="#7c3aed" Foreground="White" FontWeight="Bold" Height="38" Margin="0,0,0,10" Click="BtnDownloadAudio_Click" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                        <Button x:Name="BtnSegmentedDownload" Content="Descarga segmentada" Background="#21262d" Foreground="#cbd5e1" FontWeight="SemiBold" Height="36" BorderBrush="#30363d" BorderThickness="1" Click="BtnSegmentedDownload_Click" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
 
             <!-- Panel Derecho: Texto enriquecido con resaltado de segmentos -->
-            <Grid Grid.Column="1">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <Border Background="#161b22" BorderBrush="#30363d" BorderThickness="1" CornerRadius="8" Padding="5">
-                    <Grid>
-                        <RichTextBox x:Name="RtbInput" AcceptsReturn="True" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="15" Padding="10" 
-                            TextChanged="RtbInput_TextChanged" PreviewMouseLeftButtonDown="RtbInput_PreviewMouseLeftButtonDown" CaretBrush="White"/>
-                        
-                        <Border Background="#21262d" CornerRadius="6" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10" Padding="8,4" IsHitTestVisible="False">
-                            <TextBlock x:Name="LblCharCount" Text="303 caracteres" Foreground="#94a3b8" FontSize="12"/>
-                        </Border>
-                    </Grid>
-                </Border>
-
-                <!-- Botones de Descarga inferiores -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                    <Button x:Name="BtnSegmentedDownload" Content="Descarga segmentada" Background="#21262d" Foreground="#94a3b8" FontWeight="SemiBold" Padding="15,10" Margin="0,0,10,0" BorderBrush="#30363d" Click="BtnSegmentedDownload_Click" Cursor="Hand"/>
-                    <Button x:Name="BtnDownloadAudio" Content="📥 Descargar como Audio" Background="#7c3aed" Foreground="White" FontWeight="Bold" Padding="15,10" Click="BtnDownloadAudio_Click" Cursor="Hand"/>
-                </StackPanel>
-            </Grid>
+            <Border Grid.Column="1" Background="#161b22" BorderBrush="#30363d" BorderThickness="1" CornerRadius="8" Padding="5">
+                <Grid>
+                    <RichTextBox x:Name="RtbInput" AcceptsReturn="True" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="15" Padding="10" 
+                        TextChanged="RtbInput_TextChanged" PreviewMouseLeftButtonDown="RtbInput_PreviewMouseLeftButtonDown" CaretBrush="White"/>
+                    
+                    <Border Background="#21262d" CornerRadius="6" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10" Padding="8,4" IsHitTestVisible="False">
+                        <TextBlock x:Name="LblCharCount" Text="303 caracteres" Foreground="#94a3b8" FontSize="12"/>
+                    </Border>
+                </Grid>
+            </Border>
         </Grid>
     </Grid>
 </Window>

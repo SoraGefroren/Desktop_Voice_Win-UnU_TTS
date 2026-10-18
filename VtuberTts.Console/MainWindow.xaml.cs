@@ -38,18 +38,38 @@ namespace VtuberTts.Console
         {
             RtbInput.Document.Blocks.Clear();
             Paragraph p = new Paragraph();
+            AppendTextWithLineBreaks(p, text, null, Brushes.White, null);
+            RtbInput.Document.Blocks.Add(p);
+            _fullPlainText = text;
+            UpdateCharCount();
+        }
+
+        /// <summary>
+        /// Agrega texto a un párrafo respetando fielmente todos los saltos de línea (\r\n o \n) mediante elementos LineBreak.
+        /// </summary>
+        private static void AppendTextWithLineBreaks(Paragraph p, string text, Brush? background, Brush foreground, object? tag)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+
             string[] lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
             for (int j = 0; j < lines.Length; j++)
             {
-                p.Inlines.Add(new Run(lines[j]));
+                if (lines[j].Length > 0)
+                {
+                    Run run = new Run(lines[j])
+                    {
+                        Foreground = foreground
+                    };
+                    if (background != null) run.Background = background;
+                    if (tag != null) run.Tag = tag;
+                    p.Inlines.Add(run);
+                }
+
                 if (j < lines.Length - 1)
                 {
                     p.Inlines.Add(new LineBreak());
                 }
             }
-            RtbInput.Document.Blocks.Add(p);
-            _fullPlainText = text;
-            UpdateCharCount();
         }
 
         private string GetPlainTextFromRichTextBox()
@@ -177,6 +197,13 @@ namespace VtuberTts.Console
                 int activeIndex = _currentSegmentIndex;
                 var segment = _segments[activeIndex];
 
+                // Si el segmento es vacío o solo espacios/saltos de línea, avanzar de inmediato al siguiente
+                if (string.IsNullOrWhiteSpace(segment.Text))
+                {
+                    _currentSegmentIndex++;
+                    continue;
+                }
+
                 // Actualizar emoción y rostro visual
                 LblEmotionEmoji.Text = segment.Emoji;
                 LblEmotionName.Text = segment.Emotion;
@@ -235,32 +262,42 @@ namespace VtuberTts.Console
                 RtbInput.Document.Blocks.Clear();
                 Paragraph p = new Paragraph();
 
+                int cursor = 0;
+                int textLength = _fullPlainText.Length;
+
+                Brush normalForeground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
+                Brush activeForeground = Brushes.White;
+                Brush activeBackground = new SolidColorBrush(Color.FromArgb(90, 124, 58, 237)); // Morado resaltado activo
+
                 for (int i = 0; i < _segments.Count; i++)
                 {
-                    string segText = _segments[i].Text;
-                    bool endsWithNewline = segText.EndsWith('\n');
-                    string displayText = endsWithNewline ? segText.TrimEnd('\r', '\n') : segText;
+                    var seg = _segments[i];
 
-                    Run run = new Run(displayText + (endsWithNewline ? "" : " "))
+                    // Si hay caracteres entre el cursor y el inicio de este segmento (espacios, saltos de línea \n\n, etc.)
+                    if (seg.StartIndex > cursor && cursor < textLength)
                     {
-                        Tag = i
-                    };
-                    if (i == activeIndex)
-                    {
-                        run.Background = new SolidColorBrush(Color.FromArgb(90, 124, 58, 237)); // Morado resaltado activo
-                        run.Foreground = Brushes.White;
+                        int gapLength = Math.Min(seg.StartIndex - cursor, textLength - cursor);
+                        string gapText = _fullPlainText.Substring(cursor, gapLength);
+                        AppendTextWithLineBreaks(p, gapText, null, normalForeground, null);
+                        cursor = seg.StartIndex;
                     }
-                    else
-                    {
-                        run.Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
-                    }
-                    p.Inlines.Add(run);
 
-                    if (endsWithNewline)
-                    {
-                        p.Inlines.Add(new LineBreak());
-                    }
+                    // Renderizar el texto del segmento actual con su Tag = i
+                    bool isActive = (i == activeIndex);
+                    Brush? bg = isActive ? activeBackground : null;
+                    Brush fg = isActive ? activeForeground : normalForeground;
+
+                    AppendTextWithLineBreaks(p, seg.Text, bg, fg, i);
+                    cursor = Math.Max(cursor, seg.StartIndex + seg.Length);
                 }
+
+                // Si queda texto después del último segmento (espacios, saltos de línea finales, etc.)
+                if (cursor < textLength)
+                {
+                    string trailingText = _fullPlainText.Substring(cursor);
+                    AppendTextWithLineBreaks(p, trailingText, null, normalForeground, null);
+                }
+
                 RtbInput.Document.Blocks.Add(p);
             }
             finally
@@ -386,15 +423,7 @@ namespace VtuberTts.Console
                 {
                     RtbInput.Document.Blocks.Clear();
                     Paragraph p = new Paragraph();
-                    string[] lines = _fullPlainText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-                    for (int j = 0; j < lines.Length; j++)
-                    {
-                        p.Inlines.Add(new Run(lines[j]));
-                        if (j < lines.Length - 1)
-                        {
-                            p.Inlines.Add(new LineBreak());
-                        }
-                    }
+                    AppendTextWithLineBreaks(p, _fullPlainText, null, Brushes.White, null);
                     RtbInput.Document.Blocks.Add(p);
                 }
                 finally
