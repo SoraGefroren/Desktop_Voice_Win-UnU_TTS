@@ -31,13 +31,22 @@ namespace VtuberTts.Console
             _voiceManager = new VoiceManager();
             InitializeComponent();
             LoadLanguages();
-            SetInitialText("Hola. ¡Bienvenido al sistema de conversión de texto a voz! Aquí puedes escribir cualquier texto y convertirlo en audio usando diferentes voces e idiomas disponibles. También, puedes ajustar la velocidad, el tono y el volumen de la voz para personalizar tu experiencia. ¡Escribe algo y pruébalo!");
+            SetInitialText("Hola. ¡Bienvenido al sistema de conversión de texto a voz! Aquí puedes escribir cualquier texto y convertirlo en audio usando diferentes voces e idiomas disponibles. También, puedes ajustar la velocidad, el tono y el volumen de la voz para personalizar tu experiencia.\n\n¡Escribe algo y pruébalo!");
         }
 
         private void SetInitialText(string text)
         {
             RtbInput.Document.Blocks.Clear();
-            Paragraph p = new Paragraph(new Run(text));
+            Paragraph p = new Paragraph();
+            string[] lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            for (int j = 0; j < lines.Length; j++)
+            {
+                p.Inlines.Add(new Run(lines[j]));
+                if (j < lines.Length - 1)
+                {
+                    p.Inlines.Add(new LineBreak());
+                }
+            }
             RtbInput.Document.Blocks.Add(p);
             _fullPlainText = text;
             UpdateCharCount();
@@ -228,7 +237,11 @@ namespace VtuberTts.Console
 
                 for (int i = 0; i < _segments.Count; i++)
                 {
-                    Run run = new Run(_segments[i].Text + " ")
+                    string segText = _segments[i].Text;
+                    bool endsWithNewline = segText.EndsWith('\n');
+                    string displayText = endsWithNewline ? segText.TrimEnd('\r', '\n') : segText;
+
+                    Run run = new Run(displayText + (endsWithNewline ? "" : " "))
                     {
                         Tag = i
                     };
@@ -242,6 +255,11 @@ namespace VtuberTts.Console
                         run.Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
                     }
                     p.Inlines.Add(run);
+
+                    if (endsWithNewline)
+                    {
+                        p.Inlines.Add(new LineBreak());
+                    }
                 }
                 RtbInput.Document.Blocks.Add(p);
             }
@@ -367,7 +385,17 @@ namespace VtuberTts.Console
                 try
                 {
                     RtbInput.Document.Blocks.Clear();
-                    RtbInput.Document.Blocks.Add(new Paragraph(new Run(_fullPlainText)));
+                    Paragraph p = new Paragraph();
+                    string[] lines = _fullPlainText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+                    for (int j = 0; j < lines.Length; j++)
+                    {
+                        p.Inlines.Add(new Run(lines[j]));
+                        if (j < lines.Length - 1)
+                        {
+                            p.Inlines.Add(new LineBreak());
+                        }
+                    }
+                    RtbInput.Document.Blocks.Add(p);
                 }
                 finally
                 {
@@ -437,13 +465,13 @@ namespace VtuberTts.Console
             var segments = EmotionAnalyzer.SegmentAndAnalyze(text);
             if (segments.Count == 0) return;
 
-            string selectedLang  = CbLanguage.SelectedItem?.ToString() ?? "es-ES";
+            string selectedLang = CbLanguage.SelectedItem?.ToString() ?? "es-ES";
             string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
             float speed = (float)SliderSpeed.Value;
             float pitch = (float)SliderPitch.Value;
 
             BtnSegmentedDownload.IsEnabled = false;
-            BtnDownloadAudio.IsEnabled    = false;
+            BtnDownloadAudio.IsEnabled = false;
 
             try
             {
@@ -459,13 +487,13 @@ namespace VtuberTts.Console
 
                     jsonEntries.Add(new
                     {
-                        index    = i + 1,
-                        file     = fileName,
-                        text     = seg.Text.Trim(),
-                        emotion  = seg.Emotion,
-                        emoji    = seg.Emoji,
+                        index = i + 1,
+                        file = fileName,
+                        text = seg.Text.Trim(),
+                        emotion = seg.Emotion,
+                        emoji = seg.Emoji,
                         startIndex = seg.StartIndex,
-                        length   = seg.Length
+                        length = seg.Length
                     });
                 }
 
@@ -485,7 +513,7 @@ namespace VtuberTts.Console
             finally
             {
                 BtnSegmentedDownload.IsEnabled = true;
-                BtnDownloadAudio.IsEnabled    = true;
+                BtnDownloadAudio.IsEnabled = true;
             }
         }
     }

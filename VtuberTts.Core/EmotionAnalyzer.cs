@@ -20,33 +20,62 @@ namespace VtuberTts.Core
             if (string.IsNullOrWhiteSpace(fullText)) return segments;
 
             char[] delimiters = { '.', '!', '?', '\n' };
-            int lastIndex = 0;
+            int i = 0;
+            int n = fullText.Length;
 
-            for (int i = 0; i < fullText.Length; i++)
+            while (i < n)
             {
-                if (Array.IndexOf(delimiters, fullText[i]) >= 0 || i == fullText.Length - 1)
+                // Saltar espacios y caracteres de control en blanco antes del inicio de la oración
+                while (i < n && (fullText[i] == ' ' || fullText[i] == '\t' || fullText[i] == '\r'))
                 {
-                    int length = (i - lastIndex) + (i == fullText.Length - 1 ? 1 : 0);
-                    string part = fullText.Substring(lastIndex, length);
-                    if (!string.IsNullOrWhiteSpace(part))
+                    i++;
+                }
+
+                if (i >= n) break;
+
+                int segmentStart = i;
+
+                // Avanzar mientras no encontremos un delimitador
+                while (i < n && Array.IndexOf(delimiters, fullText[i]) < 0)
+                {
+                    i++;
+                }
+
+                // Si encontramos uno o varios delimitadores consecutivos (ej. "...", "?!", "!?", ".\n", "\r\n"),
+                // los incluimos en este segmento para preservar la puntuación, visibilidad y entonación.
+                while (i < n && (Array.IndexOf(delimiters, fullText[i]) >= 0 || fullText[i] == '\r'))
+                {
+                    i++;
+                }
+
+                int length = i - segmentStart;
+                string part = fullText.Substring(segmentStart, length);
+
+                if (!string.IsNullOrWhiteSpace(part))
+                {
+                    var evaluated = EvaluateEmotion(part);
+                    segments.Add(new TextSegment
                     {
-                        var evaluated = EvaluateEmotion(part.Trim());
-                        segments.Add(new TextSegment
-                        {
-                            Text = part,
-                            StartIndex = lastIndex,
-                            Length = length,
-                            Emotion = evaluated.Emotion,
-                            Emoji = evaluated.Emoji
-                        });
-                    }
-                    lastIndex = i + 1;
+                        Text = part.TrimEnd('\r'), // Quitar \r de Windows al final, pero preservar '.', '!', '?', '\n'
+                        StartIndex = segmentStart,
+                        Length = length,
+                        Emotion = evaluated.Emotion,
+                        Emoji = evaluated.Emoji
+                    });
                 }
             }
 
-            if (segments.Count == 0)
+            if (segments.Count == 0 && !string.IsNullOrWhiteSpace(fullText))
             {
-                segments.Add(new TextSegment { Text = fullText, StartIndex = 0, Length = fullText.Length, Emotion = "Neutral", Emoji = "😐" });
+                var evaluated = EvaluateEmotion(fullText.Trim());
+                segments.Add(new TextSegment
+                {
+                    Text = fullText.Trim(),
+                    StartIndex = 0,
+                    Length = fullText.Length,
+                    Emotion = evaluated.Emotion,
+                    Emoji = evaluated.Emoji
+                });
             }
 
             return segments;
