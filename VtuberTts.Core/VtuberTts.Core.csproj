@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
@@ -16,6 +16,9 @@
   <ItemGroup>
     <Content Include="..\__Models\kokoro-v1.0.onnx" Link="__Models\kokoro-v1.0.onnx" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\__Models\voices-v1.0.bin" Link="__Models\voices-v1.0.bin" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Modelo Piper: Claude – Español México (es-MX) High -->
+    <Content Include="..\__Models\claude\es_MX-claude-high.onnx" Link="__Models\claude\es_MX-claude-high.onnx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\__Models\claude\es_es_MX_claude_high_es_MX-claude-high.onnx.json" Link="__Models\claude\es_es_MX_claude_high_es_MX-claude-high.onnx.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

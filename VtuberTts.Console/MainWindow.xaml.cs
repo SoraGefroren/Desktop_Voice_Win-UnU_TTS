@@ -478,17 +478,17 @@ namespace VtuberTts.Console
                 return;
             }
 
-            // Seleccionar carpeta de destino usando el nombre completo para evitar conflictos
-            using var folderDialog = new System.Windows.Forms.FolderBrowserDialog
+            // Seleccionar carpeta de destino con el diálogo nativo de WPF (.NET 8+)
+            var folderDialog = new Microsoft.Win32.OpenFolderDialog
             {
-                Description = "Selecciona la carpeta donde guardar los segmentos de audio",
-                UseDescriptionForTitle = true,
-                SelectedPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
+                Title = "Selecciona la carpeta donde guardar los segmentos de audio",
+                InitialDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
+                Multiselect = false,
             };
 
-            if (folderDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+            if (folderDialog.ShowDialog() != true) return;
 
-            string outputFolder = folderDialog.SelectedPath;
+            string outputFolder = folderDialog.FolderName;
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
             var segments = EmotionAnalyzer.SegmentAndAnalyze(text);

@@ -13,6 +13,7 @@ namespace VtuberTts.Core
         private IWavePlayer? _waveOutDevice;
         private AudioFileReader? _audioFileReader;
         private readonly KokoroVoiceEngine _kokoro = new();
+        private readonly PiperVoiceEngine  _piper  = new();
         public bool IsPlaying => _waveOutDevice?.PlaybackState == PlaybackState.Playing;
 
         /// <summary>
@@ -25,9 +26,14 @@ namespace VtuberTts.Core
                 ? KokoroVoiceEngine.Catalog.Select(v => v.Language)
                 : Enumerable.Empty<string>();
 
+            var piperLanguages = _piper.IsAvailable
+                ? PiperVoiceEngine.Catalog.Select(v => v.Language)
+                : Enumerable.Empty<string>();
+
             return SpeechSynthesizer.AllVoices
                 .Select(v => v.Language)
                 .Concat(kokoroLanguages)
+                .Concat(piperLanguages)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(l => l)
                 .ToList();
@@ -52,13 +58,22 @@ namespace VtuberTts.Core
                 })
                 .ToList();
 
-            if (!_kokoro.IsAvailable) return windowsVoices;
+            var kokoroVoices = _kokoro.IsAvailable
+                ? KokoroVoiceEngine.Catalog
+                      .Where(v => KokoroVoiceEngine.MatchesLanguage(v, language))
+                      .Select(v => v.DisplayName)
+                : Enumerable.Empty<string>();
 
-            var kokoroVoices = KokoroVoiceEngine.Catalog
-                .Where(v => KokoroVoiceEngine.MatchesLanguage(v, language))
-                .Select(v => v.DisplayName);
+            var piperVoices = _piper.IsAvailable
+                ? PiperVoiceEngine.Catalog
+                      .Where(v => PiperVoiceEngine.MatchesLanguage(v, language))
+                      .Select(v => v.DisplayName)
+                : Enumerable.Empty<string>();
 
-            return windowsVoices.Concat(kokoroVoices).ToList();
+            return windowsVoices
+                .Concat(kokoroVoices)
+                .Concat(piperVoices)
+                .ToList();
         }
 
         /// <summary>
@@ -97,6 +112,14 @@ namespace VtuberTts.Core
             if (kokoroVoice != null)
             {
                 await _kokoro.SynthesizeToWavAsync(text, outputPath, kokoroVoice, speed, volume);
+                return outputPath;
+            }
+
+            // Las voces Piper (claude, etc.) se sintetizan con PiperVoiceEngine
+            var piperVoice = _piper.FindVoice(selectedVoiceName);
+            if (piperVoice != null)
+            {
+                await _piper.SynthesizeToWavAsync(text, outputPath, piperVoice, speed, volume);
                 return outputPath;
             }
 
