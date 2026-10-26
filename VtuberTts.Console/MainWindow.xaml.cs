@@ -26,6 +26,13 @@ namespace VtuberTts.Console
         /// <summary>Flag que indica si el usuario hizo clic en un segmento para forzar un salto inmediato.</summary>
         private bool _jumpRequested = false;
 
+        /// <summary>Ruta al archivo .onnx del modelo Piper externo seleccionado por el usuario.</summary>
+        private string _piperOnnxPath = string.Empty;
+        /// <summary>Ruta al archivo .json de configuración del modelo Piper externo.</summary>
+        private string _piperJsonPath = string.Empty;
+        /// <summary>Nombre exacto de la opción de voz que activa el panel Piper externo.</summary>
+        private const string PiperExternoVoiceName = "Pipper (Externo)";
+
         public MainWindow()
         {
             _voiceManager = new VoiceManager();
@@ -101,6 +108,45 @@ namespace VtuberTts.Console
                 var voices = _voiceManager.GetVoicesForLanguage(selectedLang);
                 CbVoices.ItemsSource = voices;
                 if (voices.Count > 0) CbVoices.SelectedIndex = 0;
+            }
+        }
+
+        private void CbVoices_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (PanelPiperExterno == null) return;
+            bool isPiper = CbVoices.SelectedItem?.ToString() == PiperExternoVoiceName;
+            PanelPiperExterno.Visibility = isPiper ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void BtnBrowseOnnx_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Seleccionar modelo Piper (.onnx)",
+                Filter = "Modelo ONNX (*.onnx)|*.onnx|Todos los archivos (*.*)|*.*",
+                CheckFileExists = true
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                _piperOnnxPath = dlg.FileName;
+                LblOnnxPath.Text = System.IO.Path.GetFileName(_piperOnnxPath);
+                LblOnnxPath.Foreground = new SolidColorBrush(Color.FromRgb(167, 139, 250)); // #a78bfa
+            }
+        }
+
+        private void BtnBrowseJson_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Seleccionar configuración Piper (.json)",
+                Filter = "Configuración JSON (*.json)|*.json|Todos los archivos (*.*)|*.*",
+                CheckFileExists = true
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                _piperJsonPath = dlg.FileName;
+                LblJsonPath.Text = System.IO.Path.GetFileName(_piperJsonPath);
+                LblJsonPath.Foreground = new SolidColorBrush(Color.FromRgb(167, 139, 250)); // #a78bfa
             }
         }
 
