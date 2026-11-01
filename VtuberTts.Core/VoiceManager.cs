@@ -16,9 +16,11 @@ namespace VtuberTts.Core
         private readonly PiperVoiceEngine  _piper  = new();
         public bool IsPlaying => _waveOutDevice?.PlaybackState == PlaybackState.Playing;
 
+        /// <summary>Nombre de la opción de voz externa Piper expuesta en el catálogo.</summary>
+        public const string ExternalVoiceDisplayName = PiperVoiceEngine.ExternalVoiceDisplayName;
+
         /// <summary>
-        /// Devuelve todos los idiomas disponibles incluyendo voces Online e instaladas localmente.
-        /// Las voces Online aparecen si están habilitadas en Configuración → Tiempo e idioma → Voz.
+        /// Devuelve todos los idiomas disponibles incluyendo voces Online, instaladas localmente y motores ONNX.
         /// </summary>
         public List<string> GetAvailableLanguages()
         {
@@ -30,18 +32,23 @@ namespace VtuberTts.Core
                 ? PiperVoiceEngine.Catalog.Select(v => v.Language)
                 : Enumerable.Empty<string>();
 
-            return SpeechSynthesizer.AllVoices
+            var allLanguages = SpeechSynthesizer.AllVoices
                 .Select(v => v.Language)
                 .Concat(kokoroLanguages)
                 .Concat(piperLanguages)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(l => l)
                 .ToList();
+
+            if (allLanguages.Count == 0)
+                allLanguages.Add("es-ES");
+
+            return allLanguages;
         }
 
         /// <summary>
-        /// Devuelve el nombre para mostrar y el tipo (Online/Offline) de cada voz del idioma dado.
-        /// Formato: "Nombre (Online)" o "Nombre (Local)" para diferenciarlas visualmente.
+        /// Devuelve las voces del idioma dado. Siempre incluye "Pipper (Externo)" para
+        /// permitir cargar y usar modelos ONNX de Piper de forma interactiva.
         /// </summary>
         public List<string> GetVoicesForLanguage(string language)
         {
@@ -70,15 +77,33 @@ namespace VtuberTts.Core
                       .Select(v => v.DisplayName)
                 : Enumerable.Empty<string>();
 
-            return windowsVoices
+            var voices = windowsVoices
                 .Concat(kokoroVoices)
                 .Concat(piperVoices)
                 .ToList();
+
+            // Incluir siempre la opción de voz externa
+            if (!voices.Contains(PiperVoiceEngine.ExternalVoiceDisplayName, StringComparer.OrdinalIgnoreCase))
+            {
+                voices.Add(PiperVoiceEngine.ExternalVoiceDisplayName);
+            }
+
+            return voices;
         }
 
         /// <summary>
-        /// Heurística para detectar voces Online: su Id contiene "online" (case-insensitive)
-        /// o su DisplayName contiene "Online" o "Natural".
+        /// Carga un modelo Piper externo a partir de sus archivos .onnx y .json.
+        /// </summary>
+        public void SetExternalPiperModel(string onnxPath, string jsonPath)
+            => _piper.LoadExternalVoice(onnxPath, jsonPath);
+
+        /// <summary>
+        /// Indica si el motor Piper ya tiene cargado un modelo externo.
+        /// </summary>
+        public bool HasExternalPiperModel => _piper.HasExternalVoice;
+
+        /// <summary>
+        /// Heurística para detectar voces Online de Windows.
         /// </summary>
         private static bool IsOnlineVoice(Windows.Media.SpeechSynthesis.VoiceInformation voice)
         {
@@ -99,15 +124,27 @@ namespace VtuberTts.Core
 
         /// <summary>
         /// Sintetiza texto a audio y lo guarda en <paramref name="outputPath"/>.
-        /// Usa <see cref="SpeechSynthesizerOptions"/> para aplicar velocidad, tono y volumen
-        /// de forma nativa sin necesidad de SSML personalizado.
+        /// Soporta velocidad, tono y volumen.
         /// </summary>
-        /// <param name="speed">Velocidad: 0.5 (lenta) a 2.0 (rápida). 1.0 = normal.</param>
-        /// <param name="pitch">Tono: 0.5 (grave) a 1.5 (agudo). 1.0 = normal.</param>
-        /// <param name="volume">Volumen de síntesis: 0.0 (silencio) a 1.0 (máximo).</param>
-        public async Task<string> SynthesizeSpeechAsync(string text, string outputPath, string selectedVoiceName = "", string language = "", float speed = 1.0f, float pitch = 1.0f, float volume = 1.0f)
+        public async Task<string> SynthesizeSpeechAsync(
+            string text,
+            string outputPath,
+            string selectedVoiceName = "",
+            string language = "",
+            float speed = 1.0f,
+            float pitch = 1.0f,
+            float volume = 1.0f)
         {
-            // Las voces Kokoro se sintetizan con su propio motor (el tono no es soportado por Kokoro)
+            // 1. Manejo de voz externa Piper
+            if (PiperVoiceEngine.IsExternalVoice(selectedVoiceName))
+            {
+                var externalVoice = _piper.FindVoice(selectedVoiceName)
+                    ?? throw new InvalidOperationException("No se ha cargado ningún modelo Piper externo (.onnx y .json). Carga los archivos antes de sintetizar.");
+                await _piper.SynthesizeToWavAsync(text, outputPath, externalVoice, speed, volume);
+                return outputPath;
+            }
+
+            // 2. Voces Kokoro (el tono no es soportado por Kokoro)
             var kokoroVoice = _kokoro.FindVoice(selectedVoiceName);
             if (kokoroVoice != null)
             {
@@ -115,7 +152,7 @@ namespace VtuberTts.Core
                 return outputPath;
             }
 
-            // Las voces Piper (claude, etc.) se sintetizan con PiperVoiceEngine
+            // 3. Voces Piper del catálogo local
             var piperVoice = _piper.FindVoice(selectedVoiceName);
             if (piperVoice != null)
             {
@@ -123,9 +160,9 @@ namespace VtuberTts.Core
                 return outputPath;
             }
 
+            // 4. Voces de Windows (WinRT SpeechSynthesizer)
             using var synthesizer = new SpeechSynthesizer();
 
-            // Extraer el nombre base eliminando el sufijo "(Online)" / "(Local)" si viene del ComboBox
             string baseName = ExtractVoiceName(selectedVoiceName);
 
             if (!string.IsNullOrEmpty(baseName))
@@ -140,17 +177,12 @@ namespace VtuberTts.Core
                 }
             }
 
-            // Aplicar velocidad, tono y volumen mediante SpeechSynthesizerOptions (API nativa WinRT)
-            // SpeakingRate: rango [0.5, 6.0] — 1.0 = normal
-            // AudioPitch:   rango [0.0, 2.0] — 1.0 = normal
-            // AudioVolume:  rango [0.0, 1.0] — 1.0 = máximo
             synthesizer.Options.SpeakingRate = Math.Clamp(speed, 0.5, 6.0);
             synthesizer.Options.AudioPitch = Math.Clamp(pitch, 0.0, 2.0);
             synthesizer.Options.AudioVolume = Math.Clamp(volume, 0.0, 1.0);
 
             string langCode = string.IsNullOrEmpty(language) ? "es-ES" : language;
             string encodedText = System.Net.WebUtility.HtmlEncode(text);
-            // SSML mínimo solo para especificar el idioma; los parámetros van en Options
             string ssml =
                 $"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{langCode}'>" +
                 $"{encodedText}" +

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
@@ -31,7 +32,7 @@ namespace VtuberTts.Console
         /// <summary>Ruta al archivo .json de configuración del modelo Piper externo.</summary>
         private string _piperJsonPath = string.Empty;
         /// <summary>Nombre exacto de la opción de voz que activa el panel Piper externo.</summary>
-        private const string PiperExternoVoiceName = "Pipper (Externo)";
+        private const string PiperExternoVoiceName = PiperVoiceEngine.ExternalVoiceDisplayName;
 
         public MainWindow()
         {
@@ -114,7 +115,8 @@ namespace VtuberTts.Console
         private void CbVoices_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (PanelPiperExterno == null) return;
-            bool isPiper = CbVoices.SelectedItem?.ToString() == PiperExternoVoiceName;
+            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
+            bool isPiper = PiperVoiceEngine.IsExternalVoice(selectedVoice);
             PanelPiperExterno.Visibility = isPiper ? Visibility.Visible : Visibility.Collapsed;
         }
 
@@ -131,6 +133,7 @@ namespace VtuberTts.Console
                 _piperOnnxPath = dlg.FileName;
                 LblOnnxPath.Text = System.IO.Path.GetFileName(_piperOnnxPath);
                 LblOnnxPath.Foreground = new SolidColorBrush(Color.FromRgb(167, 139, 250)); // #a78bfa
+                TryLoadExternalPiperModel();
             }
         }
 
@@ -147,6 +150,39 @@ namespace VtuberTts.Console
                 _piperJsonPath = dlg.FileName;
                 LblJsonPath.Text = System.IO.Path.GetFileName(_piperJsonPath);
                 LblJsonPath.Foreground = new SolidColorBrush(Color.FromRgb(167, 139, 250)); // #a78bfa
+                TryLoadExternalPiperModel();
+            }
+        }
+
+        /// <summary>
+        /// Cuando ambos archivos (.onnx y .json) estén seleccionados, intenta cargar
+        /// el modelo externo en el motor Piper para que quede listo para síntesis.
+        /// </summary>
+        private void TryLoadExternalPiperModel()
+        {
+            if (string.IsNullOrEmpty(_piperOnnxPath) || string.IsNullOrEmpty(_piperJsonPath))
+                return;
+
+            try
+            {
+                _voiceManager.SetExternalPiperModel(_piperOnnxPath, _piperJsonPath);
+
+                // Indicador visual exitoso en verde
+                var successBrush = new SolidColorBrush(Color.FromRgb(52, 211, 153)); // #34d399
+                LblOnnxPath.Foreground = successBrush;
+                LblJsonPath.Foreground = successBrush;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Error al cargar el modelo Piper externo:\n{ex.Message}",
+                    "Error de modelo", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                var errorBrush = new SolidColorBrush(Color.FromRgb(248, 113, 113)); // #f87171
+                if (ex.Message.Contains("onnx", StringComparison.OrdinalIgnoreCase))
+                    LblOnnxPath.Foreground = errorBrush;
+                else
+                    LblJsonPath.Foreground = errorBrush;
             }
         }
 
@@ -172,12 +208,10 @@ namespace VtuberTts.Console
 
         private void RtbInput_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // Ignorar cambios programáticos del resaltado de segmentos durante la reproducción
             if (_isHighlighting) return;
 
             if (_isPlaying)
             {
-                // El usuario editó el texto manualmente durante la reproducción → detener
                 _isPlaying = false;
                 _voiceManager.StopAudio();
                 ResetToNeutralState();
@@ -201,11 +235,22 @@ namespace VtuberTts.Console
         {
             if (_isPlaying && _isPaused)
             {
-                // Reanudar desde pausa
                 _voiceManager.ResumeAudio();
                 _isPaused = false;
                 BtnPause.Content = "⏸";
                 return;
+            }
+
+            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
+            if (PiperVoiceEngine.IsExternalVoice(selectedVoice))
+            {
+                if (!_voiceManager.HasExternalPiperModel)
+                {
+                    MessageBox.Show(
+                        "Para usar 'Pipper (Externo)' debes cargar primero un archivo .onnx y su .json de configuración.",
+                        "Modelo no cargado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
             }
 
             _fullPlainText = GetPlainTextFromRichTextBox();
@@ -243,39 +288,33 @@ namespace VtuberTts.Console
                 int activeIndex = _currentSegmentIndex;
                 var segment = _segments[activeIndex];
 
-                // Si el segmento es vacío o solo espacios/saltos de línea, avanzar de inmediato al siguiente
                 if (string.IsNullOrWhiteSpace(segment.Text))
                 {
                     _currentSegmentIndex++;
                     continue;
                 }
 
-                // Actualizar emoción y rostro visual
                 LblEmotionEmoji.Text = segment.Emoji;
                 LblEmotionName.Text = segment.Emotion;
 
-                // Resaltar texto activo en el RichTextBox
                 HighlightSegment(activeIndex);
 
                 string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"segment_{activeIndex}.wav");
                 await _voiceManager.SynthesizeSpeechAsync(segment.Text, tempPath, selectedVoice, selectedLang, speed, pitch, volume);
 
-                // Si dieron Stop o hubo un clic en otro segmento durante la síntesis, no reproducir audio viejo
                 if (!_isPlaying) break;
                 if (_jumpRequested) continue;
 
                 _voiceManager.PlayAudio(tempPath, volume);
 
-                // Esperar a que termine el audio del segmento actual o se interrumpa por clic o stop
                 await Task.Delay(300);
                 while (_voiceManager.IsPlaying && !_isPaused && _isPlaying && !_jumpRequested)
                 {
                     await Task.Delay(100);
                 }
 
-                if (!_isPlaying) break; // Si dieron Stop
+                if (!_isPlaying) break;
 
-                // Si el usuario hizo clic en un segmento, saltar de inmediato sin incrementar _currentSegmentIndex
                 if (_jumpRequested)
                 {
                     continue;
@@ -283,7 +322,6 @@ namespace VtuberTts.Console
 
                 if (_isPaused)
                 {
-                    // Mantener el bucle en pausa hasta que reanuden o cliquen otro segmento
                     while (_isPaused && _isPlaying && !_jumpRequested)
                     {
                         await Task.Delay(100);
@@ -292,11 +330,9 @@ namespace VtuberTts.Console
                     if (_jumpRequested) continue;
                 }
 
-                // Avanzar al siguiente segmento automáticamente solo si no hubo un salto manual
                 _currentSegmentIndex++;
             }
 
-            // Al finalizar todos los segmentos, volver a estado neutral conservando el texto
             ResetToNeutralState();
         }
 
@@ -313,13 +349,12 @@ namespace VtuberTts.Console
 
                 Brush normalForeground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
                 Brush activeForeground = Brushes.White;
-                Brush activeBackground = new SolidColorBrush(Color.FromArgb(90, 124, 58, 237)); // Morado resaltado activo
+                Brush activeBackground = new SolidColorBrush(Color.FromArgb(90, 124, 58, 237));
 
                 for (int i = 0; i < _segments.Count; i++)
                 {
                     var seg = _segments[i];
 
-                    // Si hay caracteres entre el cursor y el inicio de este segmento (espacios, saltos de línea \n\n, etc.)
                     if (seg.StartIndex > cursor && cursor < textLength)
                     {
                         int gapLength = Math.Min(seg.StartIndex - cursor, textLength - cursor);
@@ -328,7 +363,6 @@ namespace VtuberTts.Console
                         cursor = seg.StartIndex;
                     }
 
-                    // Renderizar el texto del segmento actual con su Tag = i
                     bool isActive = (i == activeIndex);
                     Brush? bg = isActive ? activeBackground : null;
                     Brush fg = isActive ? activeForeground : normalForeground;
@@ -337,7 +371,6 @@ namespace VtuberTts.Console
                     cursor = Math.Max(cursor, seg.StartIndex + seg.Length);
                 }
 
-                // Si queda texto después del último segmento (espacios, saltos de línea finales, etc.)
                 if (cursor < textLength)
                 {
                     string trailingText = _fullPlainText.Substring(cursor);
@@ -356,14 +389,12 @@ namespace VtuberTts.Console
         {
             if (_isPlaying && _segments.Count > 0)
             {
-                // Obtener la posición exacta del cursor donde se hizo clic en el RichTextBox
                 Point mousePos = e.GetPosition(RtbInput);
                 TextPointer pointer = RtbInput.GetPositionFromPoint(mousePos, true);
                 if (pointer != null)
                 {
                     int targetIndex = -1;
 
-                    // Método 1: Detección directa mediante el Tag del Run cliceado
                     if (pointer.Parent is Run directRun && directRun.Tag is int tagIdx)
                     {
                         targetIndex = tagIdx;
@@ -378,7 +409,6 @@ namespace VtuberTts.Console
                         }
                     }
 
-                    // Método 2 (Fallback): Si no se encontró por Tag, calcular por offset de caracteres
                     if (targetIndex < 0 || targetIndex >= _segments.Count)
                     {
                         TextRange rangeToPointer = new TextRange(RtbInput.Document.ContentStart, pointer);
@@ -407,19 +437,16 @@ namespace VtuberTts.Console
                         }
                     }
 
-                    // Establecer el segmento elegido y marcar solicitud de salto para evitar _currentSegmentIndex++
                     _currentSegmentIndex = targetIndex;
                     _jumpRequested = true;
                     _voiceManager.StopAudio();
 
-                    // Si estaba en pausa, reanudar automáticamente al hacer clic en el texto
                     if (_isPaused)
                     {
                         _isPaused = false;
                         BtnPause.Content = "⏸";
                     }
 
-                    // Evitar que el RichTextBox seleccione texto de forma nativa e interrumpa el salto
                     e.Handled = true;
                 }
             }
@@ -463,7 +490,6 @@ namespace VtuberTts.Console
                 LblEmotionEmoji.Text = "😐";
                 LblEmotionName.Text = "Neutral";
 
-                // Restaurar el texto plano sin colores de resaltado
                 _isHighlighting = true;
                 try
                 {
@@ -481,6 +507,18 @@ namespace VtuberTts.Console
 
         private async void BtnDownloadAudio_Click(object sender, RoutedEventArgs e)
         {
+            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
+            if (PiperVoiceEngine.IsExternalVoice(selectedVoice))
+            {
+                if (!_voiceManager.HasExternalPiperModel)
+                {
+                    MessageBox.Show(
+                        "Para usar 'Pipper (Externo)' debes cargar primero un archivo .onnx y su .json de configuración.",
+                        "Modelo no cargado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
             string text = GetPlainTextFromRichTextBox();
             if (string.IsNullOrWhiteSpace(text))
             {
@@ -500,7 +538,6 @@ namespace VtuberTts.Console
                 try
                 {
                     string selectedLang = CbLanguage.SelectedItem?.ToString() ?? "es-ES";
-                    string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
                     float speed = (float)SliderSpeed.Value;
                     float pitch = (float)SliderPitch.Value;
                     float volume = (float)(SliderVolume.Value / 100.0);
@@ -517,6 +554,18 @@ namespace VtuberTts.Console
 
         private async void BtnSegmentedDownload_Click(object sender, RoutedEventArgs e)
         {
+            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
+            if (PiperVoiceEngine.IsExternalVoice(selectedVoice))
+            {
+                if (!_voiceManager.HasExternalPiperModel)
+                {
+                    MessageBox.Show(
+                        "Para usar 'Pipper (Externo)' debes cargar primero un archivo .onnx y su .json de configuración.",
+                        "Modelo no cargado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
             string text = GetPlainTextFromRichTextBox();
             if (string.IsNullOrWhiteSpace(text))
             {
@@ -524,7 +573,6 @@ namespace VtuberTts.Console
                 return;
             }
 
-            // Seleccionar carpeta de destino con el diálogo nativo de WPF (.NET 8+)
             var folderDialog = new Microsoft.Win32.OpenFolderDialog
             {
                 Title = "Selecciona la carpeta donde guardar los segmentos de audio",
@@ -541,7 +589,6 @@ namespace VtuberTts.Console
             if (segments.Count == 0) return;
 
             string selectedLang = CbLanguage.SelectedItem?.ToString() ?? "es-ES";
-            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
             float speed = (float)SliderSpeed.Value;
             float pitch = (float)SliderPitch.Value;
 
@@ -572,7 +619,6 @@ namespace VtuberTts.Console
                     });
                 }
 
-                // Guardar metadata JSON con info de emociones para el avatar VTuber
                 string jsonPath = Path.Combine(outputFolder, $"segments_{timestamp}.json");
                 string jsonContent = JsonSerializer.Serialize(jsonEntries, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(jsonPath, jsonContent);

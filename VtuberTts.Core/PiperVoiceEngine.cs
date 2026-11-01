@@ -1,7 +1,11 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using MisakiSharp;
@@ -11,21 +15,17 @@ namespace VtuberTts.Core
 {
     /// <summary>
     /// Motor TTS local basado en Piper (ONNX).
-    /// Carga modelos Piper con su archivo de configuración <c>.onnx.json</c>
-    /// y los expone como voces para que <see cref="VoiceManager"/> las trate
-    /// de manera transparente, igual que las voces Kokoro.
-    ///
-    /// Actualmente el catálogo incluye:
-    ///   • claude  – Español México (es-MX), calidad High (22 050 Hz)
-    ///     Modelo: es_MX-claude-high.onnx
-    ///     Fuente: https://piperhub.org/es/model/claude-spanish-mx-high/
+    /// Permite cargar modelos Piper externos (.onnx y .json) o integrados,
+    /// exponiéndolos de forma transparente para su síntesis.
     /// </summary>
     public sealed class PiperVoiceEngine : IDisposable
     {
-        // ─── Etiqueta visual ────────────────────────────────────────────────
+        // ─── Etiqueta visual y nombres de voz ───────────────────────────────
         public const string VoiceLabel = " (Piper)";
+        public const string ExternalVoiceDisplayName = "Pipper (Externo)";
+        public const string ExternalVoiceId = "__external__";
 
-        // ─── Sub-carpeta dentro de __Models donde viven los modelos Piper ──
+        // ─── Sub-carpeta dentro de __Models donde viven modelos Piper locales ──
         private const string PiperSubfolder = "claude";
 
         // ─── Separación silenciosa entre segmentos (segundos) ───────────────
@@ -35,12 +35,12 @@ namespace VtuberTts.Core
         private const int MaxPhonemes = 400;
 
         // ──────────────────────────────────────────────────────────────────────
-        //  Catálogo de voces Piper disponibles
+        //  Catálogo de voces Piper
         // ──────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Información de una voz Piper: id visual, idioma BCP-47,
-        /// nombre del archivo ONNX y nombre del archivo de configuración JSON.
+        /// nombre o ruta del archivo ONNX, JSON y código eSpeak.
         /// </summary>
         public sealed record PiperVoiceInfo(
             string Id,
@@ -49,7 +49,8 @@ namespace VtuberTts.Core
             string ConfigFile,
             string EspeakVoice)
         {
-            public string DisplayName => Id + VoiceLabel;
+            public string DisplayName =>
+                Id == ExternalVoiceId ? ExternalVoiceDisplayName : Id + VoiceLabel;
         }
 
         /// <summary>
@@ -73,36 +74,102 @@ namespace VtuberTts.Core
 
         private readonly object _lock = new();
 
-        /// <summary>Sesiones ONNX indexadas por <see cref="PiperVoiceInfo.Id"/>.</summary>
+        /// <summary>Sesiones ONNX indexadas por Id de voz.</summary>
         private readonly Dictionary<string, InferenceSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>Configuraciones (phoneme_id_map + parámetros de inferencia) indexadas por voz.</summary>
+        /// <summary>Configuraciones indexadas por Id de voz.</summary>
         private readonly Dictionary<string, PiperConfig> _configs = new(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>Instancias de eSpeak G2P indexadas por código de idioma.</summary>
+        /// <summary>Instancias de eSpeak G2P indexadas por código de voz eSpeak.</summary>
         private readonly Dictionary<string, EspeakG2P> _espeak = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Voz externa cargada dinámicamente mediante archivos ONNX y JSON.</summary>
+        private PiperVoiceInfo? _externalVoice;
 
         private string? _modelsDir;
 
         // ──────────────────────────────────────────────────────────────────────
-        //  Propiedades públicas
+        //  Propiedades públicas y verificación
         // ──────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// <c>true</c> si se encontró la carpeta <c>__Models/claude</c> con
-        /// al menos un modelo del catálogo disponible en disco.
+        /// Indica si hay algún modelo disponible (en catálogo local o externo cargado).
         /// </summary>
-        public bool IsAvailable => Catalog.Any(v => IsVoiceAvailable(v));
+        public bool IsAvailable => _externalVoice != null || Catalog.Any(v => IsVoiceAvailable(v));
 
+        /// <summary>
+        /// Indica si ya se cargó un modelo Piper externo.
+        /// </summary>
+        public bool HasExternalVoice => _externalVoice != null;
+
+        /// <summary>
+        /// Determina si el nombre corresponde a la opción de Piper externo.
+        /// </summary>
+        public static bool IsExternalVoice(string voiceName) =>
+            string.Equals(voiceName, ExternalVoiceDisplayName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(voiceName, "Piper (Externo)", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Determina si una voz debe ser procesada por este motor.
+        /// </summary>
         public static bool IsPiperVoice(string voiceNameWithLabel) =>
             !string.IsNullOrEmpty(voiceNameWithLabel) &&
-            voiceNameWithLabel.EndsWith(VoiceLabel, StringComparison.OrdinalIgnoreCase);
+            (voiceNameWithLabel.EndsWith(VoiceLabel, StringComparison.OrdinalIgnoreCase) ||
+             IsExternalVoice(voiceNameWithLabel));
 
+        /// <summary>
+        /// Busca la información de voz correspondiente al nombre proporcionado.
+        /// </summary>
         public PiperVoiceInfo? FindVoice(string voiceNameWithLabel)
         {
-            if (!IsPiperVoice(voiceNameWithLabel)) return null;
+            if (string.IsNullOrEmpty(voiceNameWithLabel)) return null;
+
+            if (IsExternalVoice(voiceNameWithLabel))
+            {
+                return _externalVoice;
+            }
+
+            if (!voiceNameWithLabel.EndsWith(VoiceLabel, StringComparison.OrdinalIgnoreCase))
+                return null;
+
             string id = voiceNameWithLabel[..^VoiceLabel.Length].Trim();
             return Catalog.FirstOrDefault(v => v.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Carga un modelo Piper externo a partir de sus rutas de archivo .onnx y .json.
+        /// Lee la configuración de Language y EspeakVoice directamente del JSON.
+        /// </summary>
+        public void LoadExternalVoice(string onnxPath, string jsonPath)
+        {
+            if (!File.Exists(onnxPath))
+                throw new FileNotFoundException($"Archivo de modelo ONNX no encontrado: {onnxPath}");
+            if (!File.Exists(jsonPath))
+                throw new FileNotFoundException($"Archivo de configuración JSON no encontrado: {jsonPath}");
+
+            string json = File.ReadAllText(jsonPath, Encoding.UTF8);
+            var config = PiperConfig.Parse(json);
+
+            lock (_lock)
+            {
+                if (_sessions.TryGetValue(ExternalVoiceId, out var oldSession))
+                {
+                    oldSession.Dispose();
+                    _sessions.Remove(ExternalVoiceId);
+                }
+
+                var session = new InferenceSession(onnxPath);
+                _sessions[ExternalVoiceId] = session;
+                _configs[ExternalVoiceId] = config;
+
+                _externalVoice = new PiperVoiceInfo(
+                    Id: ExternalVoiceId, // Ejemplo: "claude"
+                    Language: config.Language, // Ejemplo: "es-MX"
+                    OnnxFile: onnxPath, // Ejemplo: "es_MX-claude-high.onnx"
+                    ConfigFile: jsonPath, // Ejemplo: "es_es_MX_claude_high_es_MX-claude-high.onnx.json"
+                    EspeakVoice: config.EspeakVoice // Ejemplo: "es"
+                );
+            }
         }
 
         /// <summary>Coincide por idioma exacto o por sub-etiqueta primaria (es-MX coincide con es-ES).</summary>
@@ -137,9 +204,9 @@ namespace VtuberTts.Core
             float volume)
         {
             var session = GetSession(voice);
-            var config  = GetConfig(voice);
+            var config = GetConfig(voice);
 
-            speed  = Math.Clamp(speed,  0.5f, 2.0f);
+            speed = Math.Clamp(speed, 0.5f, 2.0f);
             volume = Math.Clamp(volume, 0.0f, 1.0f);
 
             var samples = new List<float>();
@@ -160,14 +227,6 @@ namespace VtuberTts.Core
 
         // ──────────────────────────────────────────────────────────────────────
         //  Inferencia ONNX (arquitectura Piper / VITS)
-        //
-        //  Entradas del modelo:
-        //    • "input"          : int64[1, T]   – IDs de fonemas
-        //    • "input_lengths"  : int64[1]      – longitud de la secuencia
-        //    • "scales"         : float32[3]    – [noise_scale, length_scale, noise_w]
-        //
-        //  Salida:
-        //    • "output"         : float32[1, 1, N] – muestras de audio
         // ──────────────────────────────────────────────────────────────────────
 
         private static float[] Infer(
@@ -188,7 +247,6 @@ namespace VtuberTts.Core
             lengthsTensor[0] = length;
 
             // scales: [3] — noise_scale, length_scale (ajustado por speed), noise_w
-            // length_scale mayor → habla más lenta; dividir por speed invierte la relación
             float lengthScale = config.LengthScale / speed;
             var scalesTensor = new DenseTensor<float>(new[] { 3 });
             scalesTensor[0] = config.NoiseScale;
@@ -205,7 +263,6 @@ namespace VtuberTts.Core
             lock (session)
             {
                 using var results = session.Run(inputs);
-                // La salida es [1, 1, N] — ToArray() aplana a float[]
                 return results[0].AsTensor<float>().ToArray();
             }
         }
@@ -238,18 +295,12 @@ namespace VtuberTts.Core
             }
         }
 
-        /// <summary>
-        /// Convierte una cadena de fonemas IPA a IDs usando el mapa del modelo.
-        /// Piper inserta el símbolo de inicio '^' (id=1) y fin '$' (id=2)
-        /// y separa cada fonema con un espacio ' ' (id=3).
-        /// </summary>
         private static long[] PhonemeIdsFromString(
             string phonemes,
             IReadOnlyDictionary<string, long[]> phonemeIdMap)
         {
             var ids = new List<long>();
 
-            // Símbolo de inicio de secuencia
             if (phonemeIdMap.TryGetValue("^", out var start))
                 ids.AddRange(start);
 
@@ -260,13 +311,11 @@ namespace VtuberTts.Core
                 {
                     ids.AddRange(mapped);
 
-                    // Separador inter-fonema
                     if (phonemeIdMap.TryGetValue(" ", out var sep))
                         ids.AddRange(sep);
                 }
             }
 
-            // Símbolo de fin de secuencia
             if (phonemeIdMap.TryGetValue("$", out var end))
                 ids.AddRange(end);
 
@@ -279,7 +328,27 @@ namespace VtuberTts.Core
             lock (_lock)
             {
                 if (!_espeak.TryGetValue(espeakVoice, out var g2p))
-                    _espeak[espeakVoice] = g2p = new EspeakG2P(EspeakReplay.Provider(espeakVoice));
+                {
+                    try
+                    {
+                        g2p = new EspeakG2P(EspeakReplay.Provider(espeakVoice));
+                    }
+                    catch
+                    {
+                        // Fallback al tag primario si la variante regional no está soportada directamente
+                        string primary = PrimaryTag(espeakVoice);
+                        if (!string.Equals(primary, espeakVoice, StringComparison.OrdinalIgnoreCase))
+                        {
+                            try { g2p = new EspeakG2P(EspeakReplay.Provider(primary)); }
+                            catch { g2p = new EspeakG2P(EspeakReplay.Provider("es")); }
+                        }
+                        else
+                        {
+                            g2p = new EspeakG2P(EspeakReplay.Provider("es"));
+                        }
+                    }
+                    _espeak[espeakVoice] = g2p;
+                }
                 return g2p.Phonemize(text);
             }
         }
@@ -330,16 +399,15 @@ namespace VtuberTts.Core
 
         private bool IsVoiceAvailable(PiperVoiceInfo voice)
         {
+            if (File.Exists(voice.OnnxFile) && File.Exists(voice.ConfigFile))
+                return true;
+
             string? dir = FindModelsDir();
             if (dir == null) return false;
             return File.Exists(Path.Combine(dir, PiperSubfolder, voice.OnnxFile)) &&
                    File.Exists(Path.Combine(dir, PiperSubfolder, voice.ConfigFile));
         }
 
-        /// <summary>
-        /// Busca la carpeta <c>__Models</c> desde el directorio del ejecutable
-        /// hacia arriba (útil en entornos de desarrollo con estructura de solución).
-        /// </summary>
         private string? FindModelsDir()
         {
             if (_modelsDir != null) return _modelsDir;
@@ -361,6 +429,13 @@ namespace VtuberTts.Core
             {
                 if (_sessions.TryGetValue(voice.Id, out var cached)) return cached;
 
+                if (File.Exists(voice.OnnxFile))
+                {
+                    var session = new InferenceSession(voice.OnnxFile);
+                    _sessions[voice.Id] = session;
+                    return session;
+                }
+
                 string dir = FindModelsDir()
                     ?? throw new FileNotFoundException(
                         $"No se encontró la carpeta __Models para cargar el modelo Piper '{voice.Id}'.");
@@ -369,9 +444,9 @@ namespace VtuberTts.Core
                 if (!File.Exists(onnxPath))
                     throw new FileNotFoundException($"Modelo Piper no encontrado: {onnxPath}");
 
-                var session = new InferenceSession(onnxPath);
-                _sessions[voice.Id] = session;
-                return session;
+                var s = new InferenceSession(onnxPath);
+                _sessions[voice.Id] = s;
+                return s;
             }
         }
 
@@ -380,6 +455,14 @@ namespace VtuberTts.Core
             lock (_lock)
             {
                 if (_configs.TryGetValue(voice.Id, out var cached)) return cached;
+
+                if (File.Exists(voice.ConfigFile))
+                {
+                    string jsonContent = File.ReadAllText(voice.ConfigFile, Encoding.UTF8);
+                    var parsed = PiperConfig.Parse(jsonContent);
+                    _configs[voice.Id] = parsed;
+                    return parsed;
+                }
 
                 string dir = FindModelsDir()
                     ?? throw new FileNotFoundException(
@@ -396,19 +479,11 @@ namespace VtuberTts.Core
             }
         }
 
-        // ──────────────────────────────────────────────────────────────────────
-        //  Helpers
-        // ──────────────────────────────────────────────────────────────────────
-
         private static string PrimaryTag(string lang)
         {
             int i = lang.IndexOf('-');
             return i >= 0 ? lang[..i] : lang;
         }
-
-        // ──────────────────────────────────────────────────────────────────────
-        //  IDisposable
-        // ──────────────────────────────────────────────────────────────────────
 
         public void Dispose()
         {
@@ -424,33 +499,22 @@ namespace VtuberTts.Core
     //  Configuración Piper leída del archivo .onnx.json
     // ══════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Subconjunto de los parámetros del archivo <c>.onnx.json</c> de Piper
-    /// que se necesitan para la inferencia ONNX y la fonemización.
-    /// </summary>
     internal sealed class PiperConfig
     {
-        /// <summary>Frecuencia de muestreo de la señal de salida (Hz).</summary>
         public int SampleRate { get; private set; } = 22050;
 
-        // Parámetros de inferencia VITS
-        public float NoiseScale  { get; private set; } = 0.667f;
+        public float NoiseScale { get; private set; } = 0.667f;
         public float LengthScale { get; private set; } = 1.0f;
-        public float NoiseW      { get; private set; } = 0.8f;
+        public float NoiseW { get; private set; } = 0.8f;
 
-        /// <summary>
-        /// Mapa fonema (IPA string) → lista de IDs enteros del modelo.
-        /// Se construye desde la sección <c>"phoneme_id_map"</c> del JSON.
-        /// </summary>
+        public string Language { get; private set; } = "es-ES";
+        public string EspeakVoice { get; private set; } = "es";
+
         public IReadOnlyDictionary<string, long[]> PhonemeIdMap { get; private set; }
             = new Dictionary<string, long[]>();
 
         private PiperConfig() { }
 
-        /// <summary>
-        /// Parsea el archivo de configuración JSON de Piper y devuelve
-        /// una instancia de <see cref="PiperConfig"/>.
-        /// </summary>
         public static PiperConfig Parse(string json)
         {
             var cfg = new PiperConfig();
@@ -466,9 +530,48 @@ namespace VtuberTts.Core
             // inference: noise_scale, length_scale, noise_w
             if (root.TryGetProperty("inference", out var inf))
             {
-                if (inf.TryGetProperty("noise_scale",  out var ns)) cfg.NoiseScale  = ns.GetSingle();
+                if (inf.TryGetProperty("noise_scale", out var ns)) cfg.NoiseScale = ns.GetSingle();
                 if (inf.TryGetProperty("length_scale", out var ls)) cfg.LengthScale = ls.GetSingle();
-                if (inf.TryGetProperty("noise_w",      out var nw)) cfg.NoiseW      = nw.GetSingle();
+                if (inf.TryGetProperty("noise_w", out var nw)) cfg.NoiseW = nw.GetSingle();
+            }
+
+            // espeak.voice
+            if (root.TryGetProperty("espeak", out var espeak) &&
+                espeak.TryGetProperty("voice", out var ev) &&
+                !string.IsNullOrWhiteSpace(ev.GetString()))
+            {
+                cfg.EspeakVoice = ev.GetString()!;
+            }
+
+            // language: { "code": "es_MX" } o "es_MX"
+            if (root.TryGetProperty("language", out var langProp))
+            {
+                if (langProp.ValueKind == JsonValueKind.Object &&
+                    langProp.TryGetProperty("code", out var code) &&
+                    !string.IsNullOrWhiteSpace(code.GetString()))
+                {
+                    cfg.Language = code.GetString()!.Replace('_', '-');
+                }
+                else if (langProp.ValueKind == JsonValueKind.String &&
+                         !string.IsNullOrWhiteSpace(langProp.GetString()))
+                {
+                    cfg.Language = langProp.GetString()!.Replace('_', '-');
+                }
+            }
+
+            // Fallback de lenguaje / espeak si uno de los dos no viene explícito
+            if (string.IsNullOrWhiteSpace(cfg.Language) && !string.IsNullOrWhiteSpace(cfg.EspeakVoice))
+            {
+                cfg.Language = cfg.EspeakVoice.Replace('_', '-');
+            }
+            if (string.IsNullOrWhiteSpace(cfg.EspeakVoice))
+            {
+                int dash = cfg.Language.IndexOf('-');
+                cfg.EspeakVoice = dash > 0 ? cfg.Language[..dash] : cfg.Language;
+            }
+            if (string.IsNullOrWhiteSpace(cfg.EspeakVoice))
+            {
+                cfg.EspeakVoice = "es";
             }
 
             // phoneme_id_map
