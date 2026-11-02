@@ -126,11 +126,14 @@ namespace VtuberTts.Core
             }
 
             // 2. Voces Kokoro (el tono no es soportado por Kokoro)
-            var kokoroVoice = _kokoro.FindVoice(selectedVoiceName);
-            if (kokoroVoice != null)
+            if (_kokoro.IsAvailable)
             {
-                await _kokoro.SynthesizeToWavAsync(text, outputPath, kokoroVoice, speed, volume);
-                return outputPath;
+                var kokoroVoice = _kokoro.FindVoice(selectedVoiceName);
+                if (kokoroVoice != null)
+                {
+                    await _kokoro.SynthesizeToWavAsync(text, outputPath, kokoroVoice, speed, volume);
+                    return outputPath;
+                }
             }
 
             // 3. Voces Piper del catálogo local (si existieran)

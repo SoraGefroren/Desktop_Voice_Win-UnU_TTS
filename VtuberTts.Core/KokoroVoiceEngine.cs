@@ -1,7 +1,11 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using MisakiSharp;
@@ -10,9 +14,9 @@ using NAudio.Wave;
 namespace VtuberTts.Core
 {
     /// <summary>
-    /// Motor TTS local basado en Kokoro (ONNX). Expone voces con la misma forma que las de Windows
-    /// para que <see cref="VoiceManager"/> las trate de manera transparente.
-    /// Solo se publican las voces de <see cref="Catalog"/>.
+    /// Motor TTS local basado en Kokoro (ONNX). Expone voces con formato intuitivo
+    /// "(Clave) Nombre (Kokoro)" para que <see cref="VoiceManager"/> las trate
+    /// de manera transparente junto con las voces del sistema.
     /// </summary>
     public sealed class KokoroVoiceEngine : IDisposable
     {
@@ -23,17 +27,111 @@ namespace VtuberTts.Core
         private const string ModelFile = "kokoro-v1.0.onnx";
         private const string VoicesFile = "voices-v1.0.bin";
 
-        /// <summary>Voz Kokoro, su idioma BCP-47 (como los de Windows) y el código de fonemización.</summary>
-        public sealed record KokoroVoiceInfo(string Id, string Language, string G2PCode)
+        /// <summary>Información de una voz Kokoro, su idioma BCP-47, código G2P y nombre para mostrar.</summary>
+        public sealed record KokoroVoiceInfo(string Id, string Language, string G2PCode, string DisplayName)
         {
-            public string DisplayName => Id + VoiceLabel;
+            /// <summary>
+            /// Construye una voz Kokoro formateando su nombre para mostrar como "(Clave) Nombre (Kokoro)".
+            /// Ej: "ef_dora" -> "(EF) Dora (Kokoro)"
+            /// </summary>
+            public static KokoroVoiceInfo Create(string id, string language, string g2pCode)
+            {
+                int underscore = id.IndexOf('_');
+                string displayName;
+                if (underscore > 0)
+                {
+                    string clave = id[..underscore].ToUpperInvariant();
+                    string rawName = id[(underscore + 1)..];
+                    string name = rawName.Length > 0
+                        ? char.ToUpperInvariant(rawName[0]) + rawName[1..]
+                        : rawName;
+                    displayName = $"({clave}) {name}{VoiceLabel}";
+                }
+                else
+                {
+                    displayName = $"{id}{VoiceLabel}";
+                }
+
+                return new KokoroVoiceInfo(id, language, g2pCode, displayName);
+            }
         }
 
+        /// <summary>
+        /// Catálogo completo de voces Kokoro v1.0 extraído de VOICES.md.
+        /// </summary>
         public static readonly IReadOnlyList<KokoroVoiceInfo> Catalog = new[]
         {
-            new KokoroVoiceInfo("zf_xiaoni", "zh-CN", "cmn"),
-            new KokoroVoiceInfo("ef_dora", "es-ES", "es"),
-            new KokoroVoiceInfo("if_sara", "it-IT", "it"),
+            // 🇺🇸 American English (en-US) - 11F 9M
+            KokoroVoiceInfo.Create("af_heart",     "en-US", "en-us"),
+            KokoroVoiceInfo.Create("af_alloy",     "en-US", "en-us"),
+            KokoroVoiceInfo.Create("af_aoede",     "en-US", "en-us"),
+            KokoroVoiceInfo.Create("af_bella",     "en-US", "en-us"),
+            KokoroVoiceInfo.Create("af_jessica",   "en-US", "en-us"),
+            KokoroVoiceInfo.Create("af_kore",      "en-US", "en-us"),
+            KokoroVoiceInfo.Create("af_nicole",    "en-US", "en-us"),
+            KokoroVoiceInfo.Create("af_nova",      "en-US", "en-us"),
+            KokoroVoiceInfo.Create("af_river",     "en-US", "en-us"),
+            KokoroVoiceInfo.Create("af_sarah",     "en-US", "en-us"),
+            KokoroVoiceInfo.Create("af_sky",       "en-US", "en-us"),
+            KokoroVoiceInfo.Create("am_adam",      "en-US", "en-us"),
+            KokoroVoiceInfo.Create("am_echo",      "en-US", "en-us"),
+            KokoroVoiceInfo.Create("am_eric",      "en-US", "en-us"),
+            KokoroVoiceInfo.Create("am_fenrir",    "en-US", "en-us"),
+            KokoroVoiceInfo.Create("am_liam",      "en-US", "en-us"),
+            KokoroVoiceInfo.Create("am_michael",   "en-US", "en-us"),
+            KokoroVoiceInfo.Create("am_onyx",      "en-US", "en-us"),
+            KokoroVoiceInfo.Create("am_puck",      "en-US", "en-us"),
+            KokoroVoiceInfo.Create("am_santa",     "en-US", "en-us"),
+
+            // 🇬🇧 British English (en-GB) - 4F 4M
+            KokoroVoiceInfo.Create("bf_alice",     "en-GB", "en-gb"),
+            KokoroVoiceInfo.Create("bf_emma",      "en-GB", "en-gb"),
+            KokoroVoiceInfo.Create("bf_isabella",  "en-GB", "en-gb"),
+            KokoroVoiceInfo.Create("bf_lily",      "en-GB", "en-gb"),
+            KokoroVoiceInfo.Create("bm_daniel",    "en-GB", "en-gb"),
+            KokoroVoiceInfo.Create("bm_fable",     "en-GB", "en-gb"),
+            KokoroVoiceInfo.Create("bm_george",    "en-GB", "en-gb"),
+            KokoroVoiceInfo.Create("bm_lewis",     "en-GB", "en-gb"),
+
+            // 🇪🇸 Spanish (es-ES) - 1F 2M
+            KokoroVoiceInfo.Create("ef_dora",      "es-ES", "es"),
+            KokoroVoiceInfo.Create("em_alex",      "es-ES", "es"),
+            KokoroVoiceInfo.Create("em_santa",     "es-ES", "es"),
+
+            // 🇫🇷 French (fr-FR) - 1F
+            KokoroVoiceInfo.Create("ff_siwis",     "fr-FR", "fr-fr"),
+
+            // 🇮🇳 Hindi (hi-IN) - 2F 2M
+            KokoroVoiceInfo.Create("hf_alpha",     "hi-IN", "hi"),
+            KokoroVoiceInfo.Create("hf_beta",      "hi-IN", "hi"),
+            KokoroVoiceInfo.Create("hm_omega",     "hi-IN", "hi"),
+            KokoroVoiceInfo.Create("hm_psi",       "hi-IN", "hi"),
+
+            // 🇮🇹 Italian (it-IT) - 1F 1M
+            KokoroVoiceInfo.Create("if_sara",      "it-IT", "it"),
+            KokoroVoiceInfo.Create("im_nicola",    "it-IT", "it"),
+
+            // 🇯🇵 Japanese (ja-JP) - 4F 1M
+            KokoroVoiceInfo.Create("jf_alpha",      "ja-JP", "ja"),
+            KokoroVoiceInfo.Create("jf_gongitsune", "ja-JP", "ja"),
+            KokoroVoiceInfo.Create("jf_nezumi",     "ja-JP", "ja"),
+            KokoroVoiceInfo.Create("jf_tebukuro",   "ja-JP", "ja"),
+            KokoroVoiceInfo.Create("jm_kumo",       "ja-JP", "ja"),
+
+            // 🇧🇷 Brazilian Portuguese (pt-BR) - 1F 2M
+            KokoroVoiceInfo.Create("pf_dora",      "pt-BR", "pt-br"),
+            KokoroVoiceInfo.Create("pm_alex",      "pt-BR", "pt-br"),
+            KokoroVoiceInfo.Create("pm_santa",     "pt-BR", "pt-br"),
+
+            // 🇨🇳 Mandarin Chinese (zh-CN) - 4F 4M
+            KokoroVoiceInfo.Create("zf_xiaobei",   "zh-CN", "cmn"),
+            KokoroVoiceInfo.Create("zf_xiaoni",    "zh-CN", "cmn"),
+            KokoroVoiceInfo.Create("zf_xiaoxiao",  "zh-CN", "cmn"),
+            KokoroVoiceInfo.Create("zf_xiaoyi",    "zh-CN", "cmn"),
+            KokoroVoiceInfo.Create("zm_yunjian",   "zh-CN", "cmn"),
+            KokoroVoiceInfo.Create("zm_yunxi",     "zh-CN", "cmn"),
+            KokoroVoiceInfo.Create("zm_yunxia",    "zh-CN", "cmn"),
+            KokoroVoiceInfo.Create("zm_yunyang",   "zh-CN", "cmn"),
         };
 
         private static readonly Dictionary<char, int> Vocab = BuildVocab();
@@ -42,11 +140,48 @@ namespace VtuberTts.Core
         private readonly object _lock = new();
         private readonly Dictionary<string, float[]> _styles = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, EspeakG2P> _espeak = new();
+        private static EnglishG2P? _englishUs;
+        private static EnglishG2P? _englishGb;
         private InferenceSession? _session;
         private string? _modelsDir;
 
-        /// <summary>True si los modelos de Kokoro se encuentran en disco.</summary>
-        public bool IsAvailable => FindModelsDir() != null;
+        /// <summary>
+        /// Valida si el archivo VtuberTts.Core.csproj declara los modelos
+        /// "kokoro-v1.0.onnx" y "voices-v1.0.bin".
+        /// </summary>
+        public static bool HasKokoroModelsInCsproj()
+        {
+            try
+            {
+                var dir = new DirectoryInfo(AppContext.BaseDirectory);
+                while (dir != null)
+                {
+                    string candidate1 = Path.Combine(dir.FullName, "VtuberTts.Core", "VtuberTts.Core.csproj");
+                    string candidate2 = Path.Combine(dir.FullName, "VtuberTts.Core.csproj");
+                    string? csprojPath = File.Exists(candidate1) ? candidate1 : (File.Exists(candidate2) ? candidate2 : null);
+
+                    if (csprojPath != null)
+                    {
+                        string content = File.ReadAllText(csprojPath);
+                        bool hasOnnx = content.Contains("kokoro-v1.0.onnx", StringComparison.OrdinalIgnoreCase);
+                        bool hasBin  = content.Contains("voices-v1.0.bin", StringComparison.OrdinalIgnoreCase);
+                        return hasOnnx && hasBin;
+                    }
+                    dir = dir.Parent;
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// True si VtuberTts.Core.csproj contiene los modelos declarados Y existen físicamente en disco.
+        /// Si alguna condición no se cumple, las voces de Kokoro no estarán disponibles ni se mostrarán.
+        /// </summary>
+        public bool IsAvailable => HasKokoroModelsInCsproj() && FindModelsDir() != null;
 
         public static bool IsKokoroVoice(string voiceNameWithLabel) =>
             !string.IsNullOrEmpty(voiceNameWithLabel) &&
@@ -54,15 +189,29 @@ namespace VtuberTts.Core
 
         public KokoroVoiceInfo? FindVoice(string voiceNameWithLabel)
         {
-            if (!IsKokoroVoice(voiceNameWithLabel)) return null;
-            string id = voiceNameWithLabel[..^VoiceLabel.Length].Trim();
-            return Catalog.FirstOrDefault(v => v.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+            if (string.IsNullOrWhiteSpace(voiceNameWithLabel)) return null;
+
+            // 1. Coincidencia por DisplayName exacto (ej. "(EF) Dora (Kokoro)")
+            var match = Catalog.FirstOrDefault(v => v.DisplayName.Equals(voiceNameWithLabel, StringComparison.OrdinalIgnoreCase));
+            if (match != null) return match;
+
+            // 2. Coincidencia por Id con sufijo (ej. "ef_dora (Kokoro)")
+            if (IsKokoroVoice(voiceNameWithLabel))
+            {
+                string id = voiceNameWithLabel[..^VoiceLabel.Length].Trim();
+                match = Catalog.FirstOrDefault(v => v.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+                if (match != null) return match;
+            }
+
+            // 3. Coincidencia por Id directo (ej. "ef_dora")
+            return Catalog.FirstOrDefault(v => v.Id.Equals(voiceNameWithLabel, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>Coincide por idioma exacto o por subetiqueta primaria (es-MX coincide con es-ES).</summary>
         public static bool MatchesLanguage(KokoroVoiceInfo voice, string language)
         {
             if (string.IsNullOrEmpty(language)) return true;
+            if (voice.Language.Equals(language, StringComparison.OrdinalIgnoreCase)) return true;
             return PrimaryTag(voice.Language).Equals(PrimaryTag(language), StringComparison.OrdinalIgnoreCase);
         }
 
@@ -156,17 +305,48 @@ namespace VtuberTts.Core
                     return ChineseG2P.Phonemize(line);
                 }
 
+                if (g2pCode == "en-us" || g2pCode == "a")
+                {
+                    _englishUs ??= new EnglishG2P(EnglishG2P.DefaultTagger, british: false);
+                    return new string(_englishUs.Phonemize(line).Phonemes.Where(Vocab.ContainsKey).ToArray());
+                }
+
+                if (g2pCode == "en-gb" || g2pCode == "b")
+                {
+                    _englishGb ??= new EnglishG2P(EnglishG2P.DefaultTagger, british: true);
+                    return new string(_englishGb.Phonemize(line).Phonemes.Where(Vocab.ContainsKey).ToArray());
+                }
+
                 if (!_espeak.TryGetValue(g2pCode, out var g2p))
-                    _espeak[g2pCode] = g2p = new EspeakG2P(EspeakReplay.Provider(g2pCode));
+                {
+                    try
+                    {
+                        g2p = new EspeakG2P(EspeakReplay.Provider(g2pCode));
+                    }
+                    catch
+                    {
+                        string primary = PrimaryTag(g2pCode);
+                        if (!string.Equals(primary, g2pCode, StringComparison.OrdinalIgnoreCase))
+                        {
+                            try { g2p = new EspeakG2P(EspeakReplay.Provider(primary)); }
+                            catch { g2p = new EspeakG2P(EspeakReplay.Provider("es")); }
+                        }
+                        else
+                        {
+                            g2p = new EspeakG2P(EspeakReplay.Provider("es"));
+                        }
+                    }
+                    _espeak[g2pCode] = g2p;
+                }
+
                 return g2p.Phonemize(line);
             }
         }
 
-        private static EnglishG2P? _english;
         private static string EnglishPhonemes(string text)
         {
-            _english ??= new EnglishG2P(EnglishG2P.DefaultTagger, british: false);
-            return new string(_english.Phonemize(text).Phonemes.Where(Vocab.ContainsKey).ToArray());
+            _englishUs ??= new EnglishG2P(EnglishG2P.DefaultTagger, british: false);
+            return new string(_englishUs.Phonemize(text).Phonemes.Where(Vocab.ContainsKey).ToArray());
         }
 
         /// <summary>Divide los fonemas en frases (≤ SegmentTokens) respetando la puntuación.</summary>
@@ -213,10 +393,9 @@ namespace VtuberTts.Core
                 ['$'] = 0, [';'] = 1, [':'] = 2, [','] = 3, ['.'] = 4, ['!'] = 5, ['?'] = 6, ['¡'] = 7, ['¿'] = 8, ['—'] = 9, ['…'] = 10, ['"'] = 11, ['('] = 12, [')'] = 13, ['“'] = 14, ['”'] = 15, [' '] = 16, ['\u0303'] = 17, ['ʣ'] = 18, ['ʥ'] = 19, ['ʦ'] = 20, ['ʨ'] = 21, ['ᵝ'] = 22, ['\uAB67'] = 23, ['A'] = 24, ['I'] = 25, ['O'] = 31, ['Q'] = 33, ['S'] = 35, ['T'] = 36, ['W'] = 39, ['Y'] = 41, ['ᵊ'] = 42, ['a'] = 43, ['b'] = 44, ['c'] = 45, ['d'] = 46, ['e'] = 47, ['f'] = 48, ['h'] = 50, ['i'] = 51, ['j'] = 52, ['k'] = 53, ['l'] = 54, ['m'] = 55, ['n'] = 56, ['o'] = 57, ['p'] = 58, ['q'] = 59, ['r'] = 60, ['s'] = 61, ['t'] = 62, ['u'] = 63, ['v'] = 64, ['w'] = 65, ['x'] = 66, ['y'] = 67, ['z'] = 68, ['ɑ'] = 69, ['ɐ'] = 70, ['ɒ'] = 71, ['æ'] = 72, ['β'] = 75, ['ɔ'] = 76, ['ɕ'] = 77, ['ç'] = 78, ['ɖ'] = 80, ['ð'] = 81, ['ʤ'] = 82, ['ə'] = 83, ['ɚ'] = 85, ['ɛ'] = 86, ['ɜ'] = 87, ['ɟ'] = 90, ['ɡ'] = 92, ['ɥ'] = 99, ['ɨ'] = 101, ['ɪ'] = 102, ['ʝ'] = 103, ['ɯ'] = 110, ['ɰ'] = 111, ['ŋ'] = 112, ['ɳ'] = 113, ['ɲ'] = 114, ['ɴ'] = 115, ['ø'] = 116, ['ɸ'] = 118, ['θ'] = 119, ['œ'] = 120, ['ɹ'] = 123, ['ɾ'] = 125, ['ɻ'] = 126, ['ʁ'] = 128, ['ɽ'] = 129, ['ʂ'] = 130, ['ʃ'] = 131, ['ʈ'] = 132, ['ʧ'] = 133, ['ʊ'] = 135, ['ʋ'] = 136, ['ʌ'] = 138, ['ɣ'] = 139, ['ɤ'] = 140, ['χ'] = 142, ['ʎ'] = 143, ['ʒ'] = 147, ['ʔ'] = 148, ['ˈ'] = 156, ['ˌ'] = 157, ['ː'] = 158, ['ʰ'] = 162, ['ʲ'] = 164, ['↓'] = 169, ['→'] = 171, ['↗'] = 172, ['↘'] = 173, ['ᵻ'] = 177,
             };
 
-            // Símbolos específicos del chino mandarín (bopomofo, tonos y caracteres de énfasis)
             var zh = new Dictionary<char, int>
             {
-                ['/'] = 7, ['ㄓ'] = 23, ['ㄅ'] = 30, ['ㄆ'] = 32, ['R'] = 34, ['ㄇ'] = 37, ['ㄈ'] = 38, ['ㄉ'] = 40, ['ㄊ'] = 49, ['ㄋ'] = 73, ['ㄌ'] = 74, ['ㄍ'] = 79, ['ㄎ'] = 84, ['ㄦ'] = 85, ['ㄏ'] = 88, ['ㄐ'] = 89, ['ㄑ'] = 91, ['ㄒ'] = 93, ['ㄔ'] = 94, ['ㄕ'] = 95, ['ㄗ'] = 96, ['ㄘ'] = 97, ['ㄙ'] = 98, ['月'] = 99, ['ㄚ'] = 100, ['ㄛ'] = 104, ['ㄝ'] = 105, ['ㄞ'] = 106, ['ㄟ'] = 107, ['ㄠ'] = 108, ['ㄡ'] = 109, ['ㄢ'] = 117, ['ㄣ'] = 121, ['ㄤ'] = 122, ['ㄥ'] = 124, ['ㄖ'] = 126, ['ㄧ'] = 127, ['ㄨ'] = 134, ['ㄩ'] = 137, ['ㄜ'] = 140, ['ㄭ'] = 141, ['十'] = 144, ['压'] = 145, ['言'] = 146, ['阳'] = 149, ['要'] = 150, ['阴'] = 151, ['应'] = 152, ['用'] = 153, ['又'] = 154, ['中'] = 155, ['穵'] = 159, ['外'] = 160, ['万'] = 161, ['王'] = 163, ['为'] = 165, ['文'] = 166, ['瓮'] = 167, ['我'] = 168, ['3'] = 169, ['5'] = 170, ['1'] = 171, ['2'] = 172, ['4'] = 173, ['元'] = 175, ['云'] = 176,
+                ['/'] = 7, ['ㄓ'] = 23, ['ㄅ'] = 30, ['ㄆ'] = 32, ['R'] = 34, ['ㄇ'] = 37, ['ㄈ'] = 38, ['ㄉ'] = 40, ['ㄊ'] = 49, ['ㄋ'] = 73, ['ㄌ'] = 74, ['ㄍ'] = 79, ['ㄎ'] = 84, ['ㄦ'] = 85, ['ㄏ'] = 88, ['ㄐ'] = 89, ['ㄑ'] = 91, ['ㄒ'] = 93, ['ㄔ'] = 94, ['ㄕ'] = 95, ['ㄗ'] = 96, ['ㄘ'] = 97, ['ㄙ'] = 98, ['月'] = 99, ['ㄚ'] = 100, ['ㄛ'] = 104, ['ㄟ'] = 105, ['ㄞ'] = 106, ['ㄟ'] = 107, ['ㄠ'] = 108, ['ㄡ'] = 109, ['ㄢ'] = 117, ['ㄣ'] = 121, ['ㄤ'] = 122, ['ㄥ'] = 124, ['ㄖ'] = 126, ['ㄧ'] = 127, ['ㄨ'] = 134, ['ㄩ'] = 137, ['ㄜ'] = 140, ['ㄭ'] = 141, ['十'] = 144, ['压'] = 145, ['言'] = 146, ['阳'] = 149, ['要'] = 150, ['阴'] = 151, ['应'] = 152, ['用'] = 153, ['又'] = 154, ['中'] = 155, ['穵'] = 159, ['外'] = 160, ['万'] = 161, ['王'] = 163, ['为'] = 165, ['文'] = 166, ['瓮'] = 167, ['我'] = 168, ['3'] = 169, ['5'] = 170, ['1'] = 171, ['2'] = 172, ['4'] = 173, ['元'] = 175, ['云'] = 176,
             };
             foreach (var kv in zh) vocab[kv.Key] = kv.Value;
             return vocab;
@@ -230,7 +409,10 @@ namespace VtuberTts.Core
         {
             if (_modelsDir != null) return _modelsDir;
 
-            // Junto al ejecutable, o buscando hacia arriba la carpeta __Models (entorno de desarrollo)
+            string localModels = Path.Combine(AppContext.BaseDirectory, "__Models");
+            if (File.Exists(Path.Combine(localModels, ModelFile)) && File.Exists(Path.Combine(localModels, VoicesFile)))
+                return _modelsDir = localModels;
+
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)
             {
@@ -269,7 +451,6 @@ namespace VtuberTts.Core
             }
         }
 
-        // Los estilos de Kokoro son un tensor [510, 1, 256]
         private static float[,,] Reshape(float[] data)
         {
             const int dim = 256;
