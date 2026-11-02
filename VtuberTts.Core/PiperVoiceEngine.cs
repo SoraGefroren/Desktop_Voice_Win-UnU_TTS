@@ -54,19 +54,9 @@ namespace VtuberTts.Core
         }
 
         /// <summary>
-        /// Voces Piper publicadas en el catálogo.
-        /// Agregar nuevas voces aquí para que el <see cref="VoiceManager"/>
-        /// las descubra automáticamente.
+        /// Voces Piper del catálogo local (vacío por defecto ya que los modelos se cargan externamente).
         /// </summary>
-        public static readonly IReadOnlyList<PiperVoiceInfo> Catalog = new[]
-        {
-            new PiperVoiceInfo(
-                Id:           "claude",
-                Language:     "es-MX",
-                OnnxFile:     "es_MX-claude-high.onnx",
-                ConfigFile:   "es_es_MX_claude_high_es_MX-claude-high.onnx.json",
-                EspeakVoice:  "es"),          // eSpeak lang tag para español
-        };
+        public static readonly IReadOnlyList<PiperVoiceInfo> Catalog = Array.Empty<PiperVoiceInfo>();
 
         // ──────────────────────────────────────────────────────────────────────
         //  Estado interno por sesión

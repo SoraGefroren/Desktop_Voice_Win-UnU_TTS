@@ -16,11 +16,11 @@ namespace VtuberTts.Core
         private readonly PiperVoiceEngine  _piper  = new();
         public bool IsPlaying => _waveOutDevice?.PlaybackState == PlaybackState.Playing;
 
-        /// <summary>Nombre de la opción de voz externa Piper expuesta en el catálogo.</summary>
+        /// <summary>Nombre de la opción de voz externa Piper expuesta.</summary>
         public const string ExternalVoiceDisplayName = PiperVoiceEngine.ExternalVoiceDisplayName;
 
         /// <summary>
-        /// Devuelve todos los idiomas disponibles incluyendo voces Online, instaladas localmente y motores ONNX.
+        /// Devuelve los idiomas disponibles en el sistema (voces de Windows y Kokoro).
         /// </summary>
         public List<string> GetAvailableLanguages()
         {
@@ -28,14 +28,9 @@ namespace VtuberTts.Core
                 ? KokoroVoiceEngine.Catalog.Select(v => v.Language)
                 : Enumerable.Empty<string>();
 
-            var piperLanguages = _piper.IsAvailable
-                ? PiperVoiceEngine.Catalog.Select(v => v.Language)
-                : Enumerable.Empty<string>();
-
             var allLanguages = SpeechSynthesizer.AllVoices
                 .Select(v => v.Language)
                 .Concat(kokoroLanguages)
-                .Concat(piperLanguages)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(l => l)
                 .ToList();
@@ -47,8 +42,9 @@ namespace VtuberTts.Core
         }
 
         /// <summary>
-        /// Devuelve las voces del idioma dado. Siempre incluye "Pipper (Externo)" para
-        /// permitir cargar y usar modelos ONNX de Piper de forma interactiva.
+        /// Devuelve las voces disponibles para el idioma dado (voces de Windows y Kokoro).
+        /// Ya no incluye "Pipper (Externo)" en este listado, pues los modelos externos
+        /// se seleccionan desde el Selector de Modelos.
         /// </summary>
         public List<string> GetVoicesForLanguage(string language)
         {
@@ -71,24 +67,9 @@ namespace VtuberTts.Core
                       .Select(v => v.DisplayName)
                 : Enumerable.Empty<string>();
 
-            var piperVoices = _piper.IsAvailable
-                ? PiperVoiceEngine.Catalog
-                      .Where(v => PiperVoiceEngine.MatchesLanguage(v, language))
-                      .Select(v => v.DisplayName)
-                : Enumerable.Empty<string>();
-
-            var voices = windowsVoices
+            return windowsVoices
                 .Concat(kokoroVoices)
-                .Concat(piperVoices)
                 .ToList();
-
-            // Incluir siempre la opción de voz externa
-            if (!voices.Contains(PiperVoiceEngine.ExternalVoiceDisplayName, StringComparer.OrdinalIgnoreCase))
-            {
-                voices.Add(PiperVoiceEngine.ExternalVoiceDisplayName);
-            }
-
-            return voices;
         }
 
         /// <summary>
@@ -124,7 +105,7 @@ namespace VtuberTts.Core
 
         /// <summary>
         /// Sintetiza texto a audio y lo guarda en <paramref name="outputPath"/>.
-        /// Soporta velocidad, tono y volumen.
+        /// Gestiona la síntesis con PiperVoiceEngine cuando se indica el modelo "Pipper (Externo)".
         /// </summary>
         public async Task<string> SynthesizeSpeechAsync(
             string text,
@@ -152,7 +133,7 @@ namespace VtuberTts.Core
                 return outputPath;
             }
 
-            // 3. Voces Piper del catálogo local
+            // 3. Voces Piper del catálogo local (si existieran)
             var piperVoice = _piper.FindVoice(selectedVoiceName);
             if (piperVoice != null)
             {

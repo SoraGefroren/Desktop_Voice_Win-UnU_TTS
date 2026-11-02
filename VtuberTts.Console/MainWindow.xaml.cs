@@ -31,8 +31,6 @@ namespace VtuberTts.Console
         private string _piperOnnxPath = string.Empty;
         /// <summary>Ruta al archivo .json de configuración del modelo Piper externo.</summary>
         private string _piperJsonPath = string.Empty;
-        /// <summary>Nombre exacto de la opción de voz que activa el panel Piper externo.</summary>
-        private const string PiperExternoVoiceName = PiperVoiceEngine.ExternalVoiceDisplayName;
 
         public MainWindow()
         {
@@ -102,22 +100,53 @@ namespace VtuberTts.Console
             }
         }
 
+        private void ChkExternalModel_Checked(object sender, RoutedEventArgs e)
+        {
+            if (LblLanguageTitle != null)
+                LblLanguageTitle.Text = "🧠 Selector de Modelos";
+
+            // Ocultar selector de voz
+            if (PanelVoiceSelector != null)
+                PanelVoiceSelector.Visibility = Visibility.Collapsed;
+
+            // Convertir selector de idiomas a selector de modelos con "Pipper (Externo)"
+            CbLanguage.ItemsSource = new List<string> { PiperVoiceEngine.ExternalVoiceDisplayName };
+            CbLanguage.SelectedIndex = 0;
+
+            // Mostrar cargador de archivos del modelo Piper externo
+            if (PanelPiperExterno != null)
+                PanelPiperExterno.Visibility = Visibility.Visible;
+        }
+
+        private void ChkExternalModel_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (LblLanguageTitle != null)
+                LblLanguageTitle.Text = "🌐 Idioma";
+
+            // Restaurar selector de idiomas disponibles
+            LoadLanguages();
+
+            // Mostrar nuevamente el selector de voz
+            if (PanelVoiceSelector != null)
+                PanelVoiceSelector.Visibility = Visibility.Visible;
+
+            // Ocultar cargador de archivos del modelo Piper externo
+            if (PanelPiperExterno != null)
+                PanelPiperExterno.Visibility = Visibility.Collapsed;
+        }
+
         private void CbLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Si está en modo de modelo externo, no consultar voces por idioma
+            if (ChkExternalModel?.IsChecked == true)
+                return;
+
             if (CbLanguage.SelectedItem is string selectedLang)
             {
                 var voices = _voiceManager.GetVoicesForLanguage(selectedLang);
                 CbVoices.ItemsSource = voices;
                 if (voices.Count > 0) CbVoices.SelectedIndex = 0;
             }
-        }
-
-        private void CbVoices_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (PanelPiperExterno == null) return;
-            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
-            bool isPiper = PiperVoiceEngine.IsExternalVoice(selectedVoice);
-            PanelPiperExterno.Visibility = isPiper ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void BtnBrowseOnnx_Click(object sender, RoutedEventArgs e)
@@ -167,7 +196,6 @@ namespace VtuberTts.Console
             {
                 _voiceManager.SetExternalPiperModel(_piperOnnxPath, _piperJsonPath);
 
-                // Indicador visual exitoso en verde
                 var successBrush = new SolidColorBrush(Color.FromRgb(52, 211, 153)); // #34d399
                 LblOnnxPath.Foreground = successBrush;
                 LblJsonPath.Foreground = successBrush;
@@ -184,6 +212,39 @@ namespace VtuberTts.Console
                 else
                     LblJsonPath.Foreground = errorBrush;
             }
+        }
+
+        private string GetCurrentSelectedVoice()
+        {
+            if (ChkExternalModel?.IsChecked == true)
+            {
+                return PiperVoiceEngine.ExternalVoiceDisplayName;
+            }
+            return CbVoices.SelectedItem?.ToString() ?? "";
+        }
+
+        private string GetCurrentSelectedLanguage()
+        {
+            if (ChkExternalModel?.IsChecked == true)
+            {
+                return "";
+            }
+            return CbLanguage.SelectedItem?.ToString() ?? "es-ES";
+        }
+
+        private bool ValidateReadyToSynthesize()
+        {
+            if (ChkExternalModel?.IsChecked == true)
+            {
+                if (!_voiceManager.HasExternalPiperModel)
+                {
+                    MessageBox.Show(
+                        "Para usar 'Pipper (Externo)' debes cargar primero un archivo .onnx y su .json de configuración.",
+                        "Modelo no cargado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return false;
+                }
+            }
+            return true;
         }
 
         private void SliderSpeed_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -241,17 +302,7 @@ namespace VtuberTts.Console
                 return;
             }
 
-            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
-            if (PiperVoiceEngine.IsExternalVoice(selectedVoice))
-            {
-                if (!_voiceManager.HasExternalPiperModel)
-                {
-                    MessageBox.Show(
-                        "Para usar 'Pipper (Externo)' debes cargar primero un archivo .onnx y su .json de configuración.",
-                        "Modelo no cargado", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-            }
+            if (!ValidateReadyToSynthesize()) return;
 
             _fullPlainText = GetPlainTextFromRichTextBox();
             if (string.IsNullOrWhiteSpace(_fullPlainText))
@@ -276,8 +327,8 @@ namespace VtuberTts.Console
 
         private async Task PlaySegmentsLoop()
         {
-            string selectedLang = CbLanguage.SelectedItem?.ToString() ?? "es-ES";
-            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
+            string selectedLang = GetCurrentSelectedLanguage();
+            string selectedVoice = GetCurrentSelectedVoice();
             float speed = (float)SliderSpeed.Value;
             float pitch = (float)SliderPitch.Value;
             float volume = (float)(SliderVolume.Value / 100.0);
@@ -507,17 +558,7 @@ namespace VtuberTts.Console
 
         private async void BtnDownloadAudio_Click(object sender, RoutedEventArgs e)
         {
-            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
-            if (PiperVoiceEngine.IsExternalVoice(selectedVoice))
-            {
-                if (!_voiceManager.HasExternalPiperModel)
-                {
-                    MessageBox.Show(
-                        "Para usar 'Pipper (Externo)' debes cargar primero un archivo .onnx y su .json de configuración.",
-                        "Modelo no cargado", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-            }
+            if (!ValidateReadyToSynthesize()) return;
 
             string text = GetPlainTextFromRichTextBox();
             if (string.IsNullOrWhiteSpace(text))
@@ -537,7 +578,8 @@ namespace VtuberTts.Console
             {
                 try
                 {
-                    string selectedLang = CbLanguage.SelectedItem?.ToString() ?? "es-ES";
+                    string selectedLang = GetCurrentSelectedLanguage();
+                    string selectedVoice = GetCurrentSelectedVoice();
                     float speed = (float)SliderSpeed.Value;
                     float pitch = (float)SliderPitch.Value;
                     float volume = (float)(SliderVolume.Value / 100.0);
@@ -554,17 +596,7 @@ namespace VtuberTts.Console
 
         private async void BtnSegmentedDownload_Click(object sender, RoutedEventArgs e)
         {
-            string selectedVoice = CbVoices.SelectedItem?.ToString() ?? "";
-            if (PiperVoiceEngine.IsExternalVoice(selectedVoice))
-            {
-                if (!_voiceManager.HasExternalPiperModel)
-                {
-                    MessageBox.Show(
-                        "Para usar 'Pipper (Externo)' debes cargar primero un archivo .onnx y su .json de configuración.",
-                        "Modelo no cargado", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-            }
+            if (!ValidateReadyToSynthesize()) return;
 
             string text = GetPlainTextFromRichTextBox();
             if (string.IsNullOrWhiteSpace(text))
@@ -588,7 +620,8 @@ namespace VtuberTts.Console
             var segments = EmotionAnalyzer.SegmentAndAnalyze(text);
             if (segments.Count == 0) return;
 
-            string selectedLang = CbLanguage.SelectedItem?.ToString() ?? "es-ES";
+            string selectedLang = GetCurrentSelectedLanguage();
+            string selectedVoice = GetCurrentSelectedVoice();
             float speed = (float)SliderSpeed.Value;
             float pitch = (float)SliderPitch.Value;
 
