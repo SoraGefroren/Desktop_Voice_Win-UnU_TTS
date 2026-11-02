@@ -109,13 +109,16 @@ namespace VtuberTts.Console
             if (PanelVoiceSelector != null)
                 PanelVoiceSelector.Visibility = Visibility.Collapsed;
 
-            // Convertir selector de idiomas a selector de modelos con "Pipper (Externo)"
-            CbLanguage.ItemsSource = new List<string> { PiperVoiceEngine.ExternalVoiceDisplayName };
+            // Convertir selector de idiomas a selector de modelos con opciones externas
+            CbLanguage.ItemsSource = new List<string>
+            {
+                PiperVoiceEngine.ExternalVoiceDisplayName,
+                VoiceStudioApiEngine.ExternalVoiceDisplayName
+            };
             CbLanguage.SelectedIndex = 0;
 
-            // Mostrar cargador de archivos del modelo Piper externo
-            if (PanelPiperExterno != null)
-                PanelPiperExterno.Visibility = Visibility.Visible;
+            // Actualizar visibilidad de paneles externos según selección inicial
+            UpdateExternalPanelsVisibility();
         }
 
         private void ChkExternalModel_Unchecked(object sender, RoutedEventArgs e)
@@ -130,16 +133,21 @@ namespace VtuberTts.Console
             if (PanelVoiceSelector != null)
                 PanelVoiceSelector.Visibility = Visibility.Visible;
 
-            // Ocultar cargador de archivos del modelo Piper externo
+            // Ocultar cargadores de modelos externos
             if (PanelPiperExterno != null)
                 PanelPiperExterno.Visibility = Visibility.Collapsed;
+            if (PanelVoiceStudioExterno != null)
+                PanelVoiceStudioExterno.Visibility = Visibility.Collapsed;
         }
 
         private void CbLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Si está en modo de modelo externo, no consultar voces por idioma
+            // Si está en modo de modelo externo, alternar paneles según el modelo elegido
             if (ChkExternalModel?.IsChecked == true)
+            {
+                UpdateExternalPanelsVisibility();
                 return;
+            }
 
             if (CbLanguage.SelectedItem is string selectedLang)
             {
@@ -147,6 +155,22 @@ namespace VtuberTts.Console
                 CbVoices.ItemsSource = voices;
                 if (voices.Count > 0) CbVoices.SelectedIndex = 0;
             }
+        }
+
+        private void UpdateExternalPanelsVisibility()
+        {
+            string selected = CbLanguage.SelectedItem?.ToString() ?? "";
+            bool isPiper = string.Equals(selected, PiperVoiceEngine.ExternalVoiceDisplayName, StringComparison.OrdinalIgnoreCase);
+            bool isVoiceStudio = VoiceStudioApiEngine.IsVoiceStudioApiVoice(selected);
+
+            if (PanelVoiceSelector != null)
+                PanelVoiceSelector.Visibility = Visibility.Collapsed;
+
+            if (PanelPiperExterno != null)
+                PanelPiperExterno.Visibility = isPiper ? Visibility.Visible : Visibility.Collapsed;
+
+            if (PanelVoiceStudioExterno != null)
+                PanelVoiceStudioExterno.Visibility = isVoiceStudio ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void BtnBrowseOnnx_Click(object sender, RoutedEventArgs e)
@@ -214,11 +238,61 @@ namespace VtuberTts.Console
             }
         }
 
+        private async void BtnConnectVoiceStudio_Click(object sender, RoutedEventArgs e)
+        {
+            string url = TxtVoiceStudioUrl.Text.Trim();
+            if (string.IsNullOrEmpty(url))
+            {
+                MessageBox.Show("Por favor ingresa el enlace del API de VoiceStudio.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            BtnConnectVoiceStudio.IsEnabled = false;
+            LblVoiceStudioStatus.Text = "Conectando al API...";
+            LblVoiceStudioStatus.Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)); // Amarillo
+
+            try
+            {
+                var profiles = await _voiceManager.FetchVoiceStudioProfilesAsync(url);
+                CbVoiceStudioProfiles.ItemsSource = profiles;
+                if (profiles.Count > 0)
+                {
+                    CbVoiceStudioProfiles.SelectedIndex = 0;
+                    LblVoiceStudioStatus.Text = $"Conectado: {profiles.Count} perfil(es) disponible(s)";
+                    LblVoiceStudioStatus.Foreground = new SolidColorBrush(Color.FromRgb(52, 211, 153)); // Verde
+                    _voiceManager.SetVoiceStudioConfig(url, profiles[0]);
+                }
+                else
+                {
+                    LblVoiceStudioStatus.Text = "Conectado, pero no devolvió perfiles.";
+                    LblVoiceStudioStatus.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113)); // Rojo
+                }
+            }
+            catch (Exception ex)
+            {
+                LblVoiceStudioStatus.Text = "Error de conexión";
+                LblVoiceStudioStatus.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113)); // Rojo
+                MessageBox.Show($"Error al conectar con VoiceStudio API:\n{ex.Message}", "Error de conexión", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                BtnConnectVoiceStudio.IsEnabled = true;
+            }
+        }
+
+        private void CbVoiceStudioProfiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (CbVoiceStudioProfiles.SelectedItem is string profile)
+            {
+                _voiceManager.SetVoiceStudioConfig(TxtVoiceStudioUrl.Text.Trim(), profile);
+            }
+        }
+
         private string GetCurrentSelectedVoice()
         {
             if (ChkExternalModel?.IsChecked == true)
             {
-                return PiperVoiceEngine.ExternalVoiceDisplayName;
+                return CbLanguage.SelectedItem?.ToString() ?? "";
             }
             return CbVoices.SelectedItem?.ToString() ?? "";
         }
@@ -236,12 +310,26 @@ namespace VtuberTts.Console
         {
             if (ChkExternalModel?.IsChecked == true)
             {
-                if (!_voiceManager.HasExternalPiperModel)
+                string selected = CbLanguage.SelectedItem?.ToString() ?? "";
+                if (string.Equals(selected, PiperVoiceEngine.ExternalVoiceDisplayName, StringComparison.OrdinalIgnoreCase))
                 {
-                    MessageBox.Show(
-                        "Para usar 'Pipper (Externo)' debes cargar primero un archivo .onnx y su .json de configuración.",
-                        "Modelo no cargado", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return false;
+                    if (!_voiceManager.HasExternalPiperModel)
+                    {
+                        MessageBox.Show(
+                            "Para usar 'Pipper (Externo)' debes cargar primero un archivo .onnx y su .json de configuración.",
+                            "Modelo no cargado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return false;
+                    }
+                }
+                else if (VoiceStudioApiEngine.IsVoiceStudioApiVoice(selected))
+                {
+                    if (!_voiceManager.HasVoiceStudioConfig)
+                    {
+                        MessageBox.Show(
+                            "Para usar 'VoiceStudio Api (Externo)' debes ingresar el enlace, presionar 'Cargar' y seleccionar un perfil disponible.",
+                            "API no configurada", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return false;
+                    }
                 }
             }
             return true;

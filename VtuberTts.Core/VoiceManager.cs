@@ -14,10 +14,13 @@ namespace VtuberTts.Core
         private AudioFileReader? _audioFileReader;
         private readonly KokoroVoiceEngine _kokoro = new();
         private readonly PiperVoiceEngine  _piper  = new();
+        private readonly VoiceStudioApiEngine _voiceStudio = new();
         public bool IsPlaying => _waveOutDevice?.PlaybackState == PlaybackState.Playing;
 
         /// <summary>Nombre de la opción de voz externa Piper expuesta.</summary>
         public const string ExternalVoiceDisplayName = PiperVoiceEngine.ExternalVoiceDisplayName;
+        /// <summary>Nombre de la opción de API externa VoiceStudio.</summary>
+        public const string VoiceStudioApiDisplayName = VoiceStudioApiEngine.ExternalVoiceDisplayName;
 
         /// <summary>
         /// Devuelve los idiomas disponibles en el sistema (voces de Windows y Kokoro).
@@ -84,6 +87,23 @@ namespace VtuberTts.Core
         public bool HasExternalPiperModel => _piper.HasExternalVoice;
 
         /// <summary>
+        /// Obtiene los perfiles de voz disponibles consultando el API de VoiceStudio.
+        /// </summary>
+        public Task<List<string>> FetchVoiceStudioProfilesAsync(string? url = null)
+            => _voiceStudio.FetchProfilesAsync(url);
+
+        /// <summary>
+        /// Establece la URL y el perfil seleccionado para VoiceStudio API.
+        /// </summary>
+        public void SetVoiceStudioConfig(string baseUrl, string profile)
+            => _voiceStudio.SetConfig(baseUrl, profile);
+
+        /// <summary>
+        /// Indica si VoiceStudio API está configurado con URL y perfil.
+        /// </summary>
+        public bool HasVoiceStudioConfig => _voiceStudio.IsConfigured;
+
+        /// <summary>
         /// Heurística para detectar voces Online de Windows.
         /// </summary>
         private static bool IsOnlineVoice(Windows.Media.SpeechSynthesis.VoiceInformation voice)
@@ -122,6 +142,13 @@ namespace VtuberTts.Core
                 var externalVoice = _piper.FindVoice(selectedVoiceName)
                     ?? throw new InvalidOperationException("No se ha cargado ningún modelo Piper externo (.onnx y .json). Carga los archivos antes de sintetizar.");
                 await _piper.SynthesizeToWavAsync(text, outputPath, externalVoice, speed, volume);
+                return outputPath;
+            }
+
+            // 2. Manejo de VoiceStudio API externa
+            if (VoiceStudioApiEngine.IsVoiceStudioApiVoice(selectedVoiceName))
+            {
+                await _voiceStudio.SynthesizeToWavAsync(text, outputPath, speed, pitch, volume);
                 return outputPath;
             }
 

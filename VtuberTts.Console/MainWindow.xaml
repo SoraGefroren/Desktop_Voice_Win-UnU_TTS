@@ -272,6 +272,42 @@
                                 </Border>
                             </StackPanel>
 
+                            <!-- Conector de VoiceStudio API (Externo): visible sólo al elegir "VoiceStudio Api (Externo)" -->
+                            <StackPanel x:Name="PanelVoiceStudioExterno" Visibility="Collapsed" Margin="0,0,0,15">
+                                <Border Background="#1e2633" BorderBrush="#38bdf8" BorderThickness="1" CornerRadius="6" Padding="10">
+                                    <StackPanel>
+                                        <TextBlock Text="🌐 VoiceStudio API (Externo)" FontWeight="SemiBold" Foreground="#38bdf8" Margin="0,0,0,8"/>
+
+                                        <!-- Enlace al API -->
+                                        <TextBlock Text="Enlace del API" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,3"/>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Background="#21262d" BorderBrush="#30363d" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                                <TextBox x:Name="TxtVoiceStudioUrl" Text="http://localhost:5000" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="11" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <Button x:Name="BtnConnectVoiceStudio" Grid.Column="1" Content="Cargar" Width="56" Height="28"
+                                                    Background="#30363d" Foreground="#cbd5e1" FontSize="11" FontWeight="SemiBold"
+                                                    BorderBrush="#444c56" BorderThickness="1" Cursor="Hand"
+                                                    Click="BtnConnectVoiceStudio_Click">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                                                </Button.Resources>
+                                            </Button>
+                                        </Grid>
+
+                                        <!-- Selector de Perfil / Voz disponible -->
+                                        <TextBlock Text="Perfil disponible" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,3"/>
+                                        <ComboBox x:Name="CbVoiceStudioProfiles" Height="30" Margin="0,0,0,6" SelectionChanged="CbVoiceStudioProfiles_SelectionChanged"/>
+
+                                        <!-- Estado de conexión -->
+                                        <TextBlock x:Name="LblVoiceStudioStatus" Text="No conectado" Foreground="#64748b" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
                             <!-- Control de Velocidad -->
                             <Grid Margin="0,0,0,5">
                                 <TextBlock Text="⚡ Velocidad" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
