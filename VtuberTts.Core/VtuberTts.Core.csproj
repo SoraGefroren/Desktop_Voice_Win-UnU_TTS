@@ -13,9 +13,10 @@
     <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
+  <!-- Modelos Kokoro (Opcionales): Si los archivos existen se copian a la salida, si no existen no detienen la compilación -->
   <ItemGroup>
-    <Content Include="..\__Models\kokoro-v1.0.onnx" Link="__Models\kokoro-v1.0.onnx" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\__Models\voices-v1.0.bin" Link="__Models\voices-v1.0.bin" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\__Models\kokoro-v1.0.onnx" Link="__Models\kokoro-v1.0.onnx" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\__Models\kokoro-v1.0.onnx')" />
+    <Content Include="..\__Models\voices-v1.0.bin" Link="__Models\voices-v1.0.bin" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\__Models\voices-v1.0.bin')" />
   </ItemGroup>
 
 </Project>
