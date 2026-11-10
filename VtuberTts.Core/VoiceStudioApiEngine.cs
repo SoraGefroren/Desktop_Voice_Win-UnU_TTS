@@ -10,20 +10,41 @@ using System.Threading.Tasks;
 namespace VtuberTts.Core
 {
     /// <summary>
-    /// Motor cliente para conectarse con una API REST externa de VoiceStudio / TTS.
+    /// Motor cliente para conectarse con una API REST externa compatible con VoiceStudio / OpenAI TTS.
     /// Permite descubrir perfiles/voces disponibles y sintetizar texto a archivo WAV.
+    /// 
+    /// Arquitectura de VoiceStudio:
+    ///   - Puerto 3900: Python FastAPI backend (API real) → usar este
+    ///   - Puerto 3902: Electron UI frontend → NO usar para API
+    /// 
+    /// Endpoints utilizados:
+    ///   - GET  {baseUrl}/api/profiles → lista de perfiles [{id, name, ...}]
+    ///   - POST {baseUrl}/v1/audio/speech → síntesis (compatible OpenAI)
+    ///     Body: { model, input, voice, response_format, speed }
+    ///     Response: bytes WAV binarios directos
     /// </summary>
     public sealed class VoiceStudioApiEngine : IDisposable
     {
         public const string ExternalVoiceDisplayName = "VoiceStudio Api (Externo)";
 
+        // HttpClient con timeout extendido (VoiceStudio puede tardar hasta 5 min en cargar el modelo)
         private readonly HttpClient _httpClient;
-        private string _baseUrl = "http://localhost:5000";
-        private string _selectedProfile = string.Empty;
+        private string _baseUrl = "http://localhost:3900";
+
+        // Separamos nombre visible del ID real que enviar en la petición
+        private string _selectedProfileId   = string.Empty;
+        private string _selectedProfileName = string.Empty;
+
+        // Diccionario nombre → id para resolver la selección del ComboBox
+        private Dictionary<string, string> _profileMap = new();
 
         public VoiceStudioApiEngine(HttpClient? httpClient = null)
         {
-            _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            _httpClient = httpClient ?? new HttpClient
+            {
+                // Timeout largo: el primer request puede tardar mientras VoiceStudio carga el modelo
+                Timeout = TimeSpan.FromSeconds(300)
+            };
         }
 
         public string BaseUrl
@@ -32,27 +53,43 @@ namespace VtuberTts.Core
             set => _baseUrl = (value ?? string.Empty).Trim().TrimEnd('/');
         }
 
-        public string SelectedProfile
-        {
-            get => _selectedProfile;
-            set => _selectedProfile = (value ?? string.Empty).Trim();
-        }
+        /// <summary>Nombre visible del perfil seleccionado (mostrado en ComboBox).</summary>
+        public string SelectedProfileName => _selectedProfileName;
 
-        public bool IsConfigured => !string.IsNullOrWhiteSpace(_baseUrl) && !string.IsNullOrWhiteSpace(_selectedProfile);
+        /// <summary>ID interno del perfil seleccionado (enviado al API).</summary>
+        public string SelectedProfileId => _selectedProfileId;
+
+        /// <summary>
+        /// True cuando hay URL y perfil configurados listos para sintetizar.
+        /// </summary>
+        public bool IsConfigured =>
+            !string.IsNullOrWhiteSpace(_baseUrl) &&
+            !string.IsNullOrWhiteSpace(_selectedProfileId);
 
         public static bool IsVoiceStudioApiVoice(string? voiceName) =>
             !string.IsNullOrEmpty(voiceName) &&
             string.Equals(voiceName, ExternalVoiceDisplayName, StringComparison.OrdinalIgnoreCase);
 
-        public void SetConfig(string baseUrl, string selectedProfile)
+        /// <summary>
+        /// Establece la URL base y el perfil seleccionado a partir del nombre visible.
+        /// Resuelve el ID interno usando el mapa cargado en FetchProfilesAsync.
+        /// </summary>
+        public void SetConfig(string baseUrl, string profileName)
         {
             BaseUrl = baseUrl;
-            SelectedProfile = selectedProfile;
+            _selectedProfileName = (profileName ?? string.Empty).Trim();
+
+            // Intentar resolver el ID desde el mapa; si no existe, usar el nombre como ID fallback
+            if (_profileMap.TryGetValue(_selectedProfileName, out var id) && !string.IsNullOrWhiteSpace(id))
+                _selectedProfileId = id;
+            else
+                _selectedProfileId = _selectedProfileName; // fallback: usar nombre como ID
         }
 
         /// <summary>
         /// Consulta la API de VoiceStudio para obtener los perfiles o voces disponibles.
-        /// Intenta consultar rutas estándar como /api/profiles, /api/voices, /voices o /v1/models.
+        /// Devuelve lista de nombres visibles (para mostrar en ComboBox).
+        /// Internamente guarda también los IDs en el mapa.
         /// </summary>
         public async Task<List<string>> FetchProfilesAsync(string? baseUrl = null, CancellationToken cancellationToken = default)
         {
@@ -60,8 +97,8 @@ namespace VtuberTts.Core
             if (string.IsNullOrWhiteSpace(url))
                 throw new ArgumentException("La URL del API de VoiceStudio no puede estar vacía.");
 
-            // Rutas habituales en servidores de VoiceStudio / TTS
-            string[] probePaths = { "/api/profiles", "/api/voices", "/voices", "/v1/models", "/profiles" };
+            // Rutas habituales para perfiles — probar en orden de preferencia
+            string[] probePaths = { "/api/profiles", "/profiles", "/api/voices", "/voices" };
             Exception? lastEx = null;
 
             foreach (var path in probePaths)
@@ -74,11 +111,13 @@ namespace VtuberTts.Core
                         continue;
 
                     string json = await response.Content.ReadAsStringAsync(cancellationToken);
-                    var profiles = ParseProfilesFromJson(json);
-                    if (profiles.Count > 0)
+                    var (names, map) = ParseProfilesFromJson(json);
+
+                    if (names.Count > 0)
                     {
                         BaseUrl = url;
-                        return profiles;
+                        _profileMap = map;
+                        return names;
                     }
                 }
                 catch (Exception ex)
@@ -88,13 +127,19 @@ namespace VtuberTts.Core
             }
 
             if (lastEx != null)
-                throw new HttpRequestException($"No se pudo conectar con el servidor VoiceStudio en '{url}': {lastEx.Message}", lastEx);
+                throw new HttpRequestException(
+                    $"No se pudo conectar con el servidor VoiceStudio en '{url}': {lastEx.Message}", lastEx);
 
-            throw new HttpRequestException($"El servidor en '{url}' respondió, pero no devolvió ningún perfil ni lista de voces válida.");
+            throw new HttpRequestException(
+                $"El servidor en '{url}' respondió, pero no devolvió ningún perfil ni lista de voces válida.\n" +
+                "Verifica que la URL sea la del backend Python (ej. http://localhost:3900), no la del frontend Electron.");
         }
 
         /// <summary>
-        /// Sintetiza texto a audio WAV consultando el endpoint de síntesis de VoiceStudio.
+        /// Sintetiza texto a audio WAV usando el endpoint OpenAI-compatible de VoiceStudio.
+        /// Endpoint: POST {baseUrl}/v1/audio/speech
+        /// Body: { "model": "tts-1", "input": text, "voice": profileId, "response_format": "wav", "speed": N }
+        /// Response: bytes WAV directos (no JSON)
         /// </summary>
         public async Task SynthesizeToWavAsync(
             string text,
@@ -105,135 +150,180 @@ namespace VtuberTts.Core
             CancellationToken cancellationToken = default)
         {
             if (!IsConfigured)
-                throw new InvalidOperationException("VoiceStudio API no está configurado. Asegúrate de ingresar el enlace y seleccionar un perfil.");
+                throw new InvalidOperationException(
+                    "VoiceStudio API no está configurado. Ingresa el enlace del API backend (ej. http://localhost:3900), " +
+                    "presiona 'Cargar' y selecciona un perfil de voz.");
 
-            string[] ttsPaths = { "/api/tts", "/tts", "/api/synthesize", "/v1/audio/speech" };
-            Exception? lastEx = null;
+            // Endpoint único y correcto para VoiceStudio (OpenAI-compatible)
+            string target = _baseUrl.TrimEnd('/') + "/v1/audio/speech";
 
-            var payloadObj = new
+            // Payload compatible con la API de VoiceStudio (OpenAI TTS format)
+            var payload = new
             {
-                text = text,
-                input = text,
-                voice = _selectedProfile,
-                profile = _selectedProfile,
-                speed = speed,
-                pitch = pitch,
-                volume = volume
+                model          = "tts-1",
+                input          = text,
+                voice          = _selectedProfileId,  // ID del perfil, no el nombre
+                response_format = "wav",
+                speed          = (double)Math.Clamp(speed, 0.25f, 4.0f)
             };
-            string jsonBody = JsonSerializer.Serialize(payloadObj);
 
-            foreach (var path in ttsPaths)
+            string jsonBody = JsonSerializer.Serialize(payload);
+
+            try
             {
-                try
+                using var request = new HttpRequestMessage(HttpMethod.Post, target)
                 {
-                    string target = _baseUrl + path;
-                    using var request = new HttpRequestMessage(HttpMethod.Post, target)
+                    Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
+                };
+
+                // Leer respuesta completa como stream para manejar archivos grandes
+                using var response = await _httpClient.SendAsync(
+                    request,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    throw new HttpRequestException(
+                        $"El API de VoiceStudio respondió con error {(int)response.StatusCode}: {response.ReasonPhrase}\n{errBody}");
+                }
+
+                byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+
+                if (data.Length == 0)
+                    throw new HttpRequestException("El API de VoiceStudio devolvió una respuesta vacía.");
+
+                // Verificar si la respuesta es JSON con audio en base64 (fallback)
+                if (IsJsonBytes(data))
+                {
+                    string jsonStr = Encoding.UTF8.GetString(data);
+                    try
                     {
-                        Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
-                    };
-
-                    using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                    if (!response.IsSuccessStatusCode)
-                        continue;
-
-                    byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-                    if (data.Length == 0)
-                        continue;
-
-                    // Si la respuesta es JSON con base64 (ej. { "audio": "..." })
-                    if (IsJson(data))
-                    {
-                        string jsonStr = Encoding.UTF8.GetString(data);
                         using var doc = JsonDocument.Parse(jsonStr);
-                        if (doc.RootElement.TryGetProperty("audio", out var audioProp) ||
+                        JsonElement audioProp;
+                        if (doc.RootElement.TryGetProperty("audio", out audioProp)       ||
                             doc.RootElement.TryGetProperty("audio_base64", out audioProp) ||
                             doc.RootElement.TryGetProperty("data", out audioProp))
                         {
                             string? b64 = audioProp.GetString();
                             if (!string.IsNullOrEmpty(b64))
-                            {
                                 data = Convert.FromBase64String(b64);
-                            }
+                        }
+                        else if (doc.RootElement.TryGetProperty("error", out var errProp))
+                        {
+                            throw new HttpRequestException(
+                                $"Error desde VoiceStudio API: {errProp.GetString()}");
                         }
                     }
+                    catch (JsonException)
+                    {
+                        // No es JSON válido — asumir que son bytes WAV directos
+                    }
+                }
 
-                    await File.WriteAllBytesAsync(outputPath, data, cancellationToken);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    lastEx = ex;
-                }
+                await File.WriteAllBytesAsync(outputPath, data, cancellationToken);
             }
-
-            if (lastEx != null)
-                throw new HttpRequestException($"Error al sintetizar audio en VoiceStudio API: {lastEx.Message}", lastEx);
-
-            throw new HttpRequestException("No se pudo sintetizar audio. Ningún endpoint de TTS respondió satisfactoriamente.");
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException(
+                    "El API de VoiceStudio tardó demasiado en responder (>5 min). " +
+                    "El modelo puede estar cargándose por primera vez. Inténtalo nuevamente en unos segundos.");
+            }
         }
 
-        private static List<string> ParseProfilesFromJson(string json)
+        // ─── Parsing de perfiles ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Parsea la respuesta JSON de /api/profiles y devuelve (lista de nombres, mapa nombre→id).
+        /// Soporta: array de strings, array de {id, name, ...}, objeto con propiedad "profiles"/"voices".
+        /// </summary>
+        private static (List<string> names, Dictionary<string, string> map) ParseProfilesFromJson(string json)
         {
-            var result = new List<string>();
+            var names = new List<string>();
+            var map   = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
             try
             {
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                // Caso 1: Arreglo directo de cadenas o de objetos
                 if (root.ValueKind == JsonValueKind.Array)
                 {
-                    ExtractFromElements(root.EnumerateArray(), result);
+                    ExtractFromElements(root.EnumerateArray(), names, map);
                 }
-                // Caso 2: Objeto contenedor { "profiles": [...] }, { "voices": [...] } o { "data": [...] }
                 else if (root.ValueKind == JsonValueKind.Object)
                 {
-                    if (root.TryGetProperty("profiles", out var p) && p.ValueKind == JsonValueKind.Array)
-                        ExtractFromElements(p.EnumerateArray(), result);
-                    else if (root.TryGetProperty("voices", out var v) && v.ValueKind == JsonValueKind.Array)
-                        ExtractFromElements(v.EnumerateArray(), result);
-                    else if (root.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Array)
-                        ExtractFromElements(d.EnumerateArray(), result);
+                    // Buscar propiedad que contenga el array
+                    foreach (var key in new[] { "profiles", "voices", "data", "results" })
+                    {
+                        if (root.TryGetProperty(key, out var arr) && arr.ValueKind == JsonValueKind.Array)
+                        {
+                            ExtractFromElements(arr.EnumerateArray(), names, map);
+                            break;
+                        }
+                    }
                 }
             }
             catch
             {
+                // JSON inválido → devolver vacío
             }
 
-            return result;
+            return (names, map);
         }
 
-        private static void ExtractFromElements(JsonElement.ArrayEnumerator arrayEnum, List<string> output)
+        private static void ExtractFromElements(
+            JsonElement.ArrayEnumerator arrayEnum,
+            List<string> names,
+            Dictionary<string, string> map)
         {
             foreach (var item in arrayEnum)
             {
                 if (item.ValueKind == JsonValueKind.String)
                 {
                     string? str = item.GetString();
-                    if (!string.IsNullOrWhiteSpace(str) && !output.Contains(str))
-                        output.Add(str);
+                    if (!string.IsNullOrWhiteSpace(str) && !names.Contains(str))
+                    {
+                        names.Add(str);
+                        map[str] = str; // Sin ID separado → usar el mismo valor
+                    }
                 }
                 else if (item.ValueKind == JsonValueKind.Object)
                 {
-                    // Buscar campos id, name, o profile
+                    // Extraer nombre e ID del objeto perfil
+                    string? id   = null;
                     string? name = null;
-                    if (item.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String)
-                        name = n.GetString();
-                    else if (item.TryGetProperty("id", out var i) && i.ValueKind == JsonValueKind.String)
-                        name = i.GetString();
-                    else if (item.TryGetProperty("profile", out var pr) && pr.ValueKind == JsonValueKind.String)
-                        name = pr.GetString();
 
-                    if (!string.IsNullOrWhiteSpace(name) && !output.Contains(name))
-                        output.Add(name);
+                    if (item.TryGetProperty("id",      out var idProp)   && idProp.ValueKind   == JsonValueKind.String)
+                        id   = idProp.GetString();
+                    if (item.TryGetProperty("name",    out var nameProp)  && nameProp.ValueKind  == JsonValueKind.String)
+                        name = nameProp.GetString();
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        if (item.TryGetProperty("profile", out var prProp) && prProp.ValueKind == JsonValueKind.String)
+                            name = prProp.GetString();
+                        else if (item.TryGetProperty("display_name", out var dnProp) && dnProp.ValueKind == JsonValueKind.String)
+                            name = dnProp.GetString();
+                    }
+
+                    // Usar nombre como clave visible; ID como valor para la API
+                    string displayName = name ?? id ?? string.Empty;
+                    string resolvedId  = id   ?? name ?? string.Empty;
+
+                    if (!string.IsNullOrWhiteSpace(displayName) && !names.Contains(displayName))
+                    {
+                        names.Add(displayName);
+                        map[displayName] = resolvedId;
+                    }
                 }
             }
         }
 
-        private static bool IsJson(byte[] bytes)
+        private static bool IsJsonBytes(byte[] bytes)
         {
             if (bytes.Length < 2) return false;
-            // Un WAV comienza con "RIFF", un JSON comienza con '{' o '['
+            // WAV comienza con "RIFF"; JSON comienza con '{' o '['
             char first = (char)bytes[0];
             return first == '{' || first == '[';
         }
@@ -244,4 +334,3 @@ namespace VtuberTts.Core
         }
     }
 }
-
