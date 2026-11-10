@@ -50,7 +50,17 @@ namespace VtuberTts.Core
         public string BaseUrl
         {
             get => _baseUrl;
-            set => _baseUrl = (value ?? string.Empty).Trim().TrimEnd('/');
+            set
+            {
+                string raw = (value ?? string.Empty).Trim().TrimEnd('/');
+                // Si el usuario ingresa el puerto 3902 (interfaz web/Vite de VoiceStudio),
+                // redirigir automáticamente al puerto 3900 (API FastAPI de síntesis)
+                if (raw.Contains(":3902"))
+                {
+                    raw = raw.Replace(":3902", ":3900");
+                }
+                _baseUrl = raw;
+            }
         }
 
         /// <summary>Nombre visible del perfil seleccionado (mostrado en ComboBox).</summary>

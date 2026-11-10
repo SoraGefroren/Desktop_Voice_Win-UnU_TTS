@@ -286,7 +286,7 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <Border Grid.Column="0" Background="#21262d" BorderBrush="#30363d" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
-                                                <TextBox x:Name="TxtVoiceStudioUrl" Text="http://localhost:5000" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="11" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="TxtVoiceStudioUrl" Text="http://localhost:3900" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="11" VerticalAlignment="Center"/>
                                             </Border>
                                             <Button x:Name="BtnConnectVoiceStudio" Grid.Column="1" Content="Cargar" Width="56" Height="28"
                                                     Background="#30363d" Foreground="#cbd5e1" FontSize="11" FontWeight="SemiBold"

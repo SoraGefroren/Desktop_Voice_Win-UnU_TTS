@@ -247,6 +247,14 @@ namespace VtuberTts.Console
                 return;
             }
 
+            // Si el usuario ingresa el puerto 3902 (interfaz web/Vite de VoiceStudio),
+            // redirigir automáticamente al puerto 3900 (API FastAPI de síntesis)
+            if (url.Contains(":3902"))
+            {
+                url = url.Replace(":3902", ":3900");
+                TxtVoiceStudioUrl.Text = url;
+            }
+
             BtnConnectVoiceStudio.IsEnabled = false;
             LblVoiceStudioStatus.Text = "Conectando al API...";
             LblVoiceStudioStatus.Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)); // Amarillo
