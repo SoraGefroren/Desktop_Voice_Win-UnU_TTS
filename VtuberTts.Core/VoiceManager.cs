@@ -87,6 +87,11 @@ namespace VtuberTts.Core
         public bool HasExternalPiperModel => _piper.HasExternalVoice;
 
         /// <summary>
+        /// Acceso al motor VoiceStudio API para configurar parámetros avanzados.
+        /// </summary>
+        public VoiceStudioApiEngine VoiceStudioEngine => _voiceStudio;
+
+        /// <summary>
         /// Obtiene los perfiles de voz disponibles consultando el API de VoiceStudio.
         /// </summary>
         public Task<List<string>> FetchVoiceStudioProfilesAsync(string? url = null)
@@ -148,7 +153,7 @@ namespace VtuberTts.Core
             // 2. Manejo de VoiceStudio API externa
             if (VoiceStudioApiEngine.IsVoiceStudioApiVoice(selectedVoiceName))
             {
-                await _voiceStudio.SynthesizeToWavAsync(text, outputPath, speed, pitch, volume);
+                await _voiceStudio.SynthesizeToWavAsync(text, outputPath, language, speed, pitch, volume);
                 return outputPath;
             }
 

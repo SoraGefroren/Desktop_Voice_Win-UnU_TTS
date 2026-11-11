@@ -304,6 +304,58 @@
 
                                         <!-- Estado de conexión -->
                                         <TextBlock x:Name="LblVoiceStudioStatus" Text="No conectado" Foreground="#64748b" FontSize="11" TextTrimming="CharacterEllipsis"/>
+
+                                        <!-- Ajustes avanzados del modelo (VoiceStudio) -->
+                                        <Expander Header="⚙ Ajustes de VoiceStudio" Foreground="#38bdf8" FontSize="11" Margin="0,8,0,0" IsExpanded="False">
+                                            <StackPanel Margin="0,6,0,0">
+                                                <!-- Influencia de la indicación (guidance_scale) -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <TextBlock Text="Influencia de la indicación" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblGuidanceScale" Text="2.0" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                                <Slider x:Name="SliderGuidanceScale" Minimum="0.5" Maximum="5.0" Value="2.0" TickFrequency="0.1" IsSnapToTickEnabled="True" Margin="0,0,0,6" ValueChanged="SliderVoiceStudio_ValueChanged"/>
+
+                                                <!-- Momento del refinamiento (t_shift) -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <TextBlock Text="Momento del refinamiento" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblTShift" Text="0.10" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                                <Slider x:Name="SliderTShift" Minimum="0.01" Maximum="0.50" Value="0.10" TickFrequency="0.01" IsSnapToTickEnabled="True" Margin="0,0,0,6" ValueChanged="SliderVoiceStudio_ValueChanged"/>
+
+                                                <!-- Variación del orden de muestreo (position_temperature) -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <TextBlock Text="Variación del orden de muestreo" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblPosTemp" Text="5.0" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                                <Slider x:Name="SliderPosTemp" Minimum="0.0" Maximum="10.0" Value="5.0" TickFrequency="0.5" IsSnapToTickEnabled="True" Margin="0,0,0,6" ValueChanged="SliderVoiceStudio_ValueChanged"/>
+
+                                                <!-- Variación del sonido (class_temperature) -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <TextBlock Text="Variación del sonido" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblClassTemp" Text="0.0" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                                <Slider x:Name="SliderClassTemp" Minimum="0.0" Maximum="5.0" Value="0.0" TickFrequency="0.1" IsSnapToTickEnabled="True" Margin="0,0,0,6" ValueChanged="SliderVoiceStudio_ValueChanged"/>
+
+                                                <!-- Equilibrio entre grueso y fino (layer_penalty_factor) -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <TextBlock Text="Equilibrio entre grueso y fino" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblLayerPenalty" Text="5.0" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                                <Slider x:Name="SliderLayerPenalty" Minimum="0.0" Maximum="10.0" Value="5.0" TickFrequency="0.5" IsSnapToTickEnabled="True" Margin="0,0,0,6" ValueChanged="SliderVoiceStudio_ValueChanged"/>
+
+                                                <!-- Refinamiento de voz (num_step) -->
+                                                <Grid Margin="0,0,0,2">
+                                                    <TextBlock Text="Refinamiento de voz (pasos)" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblNumStep" Text="16" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                                <Slider x:Name="SliderNumStep" Minimum="4" Maximum="32" Value="16" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" ValueChanged="SliderVoiceStudio_ValueChanged"/>
+
+                                                <!-- Casillas de procesamiento -->
+                                                <CheckBox x:Name="ChkBalanceVolume" Content="Equilibrar volumen" IsChecked="True" Foreground="#cbd5e1" FontSize="10" Margin="0,0,0,4" Checked="ChkVoiceStudio_Changed" Unchecked="ChkVoiceStudio_Changed"/>
+                                                <CheckBox x:Name="ChkDenoise" Content="Limpiar ruido de referencia" IsChecked="True" Foreground="#cbd5e1" FontSize="10" Margin="0,0,0,4" Checked="ChkVoiceStudio_Changed" Unchecked="ChkVoiceStudio_Changed"/>
+                                                <CheckBox x:Name="ChkPostprocess" Content="Pulir el audio generado" IsChecked="True" Foreground="#cbd5e1" FontSize="10" Margin="0,0,0,4" Checked="ChkVoiceStudio_Changed" Unchecked="ChkVoiceStudio_Changed"/>
+                                            </StackPanel>
+                                        </Expander>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

@@ -247,14 +247,6 @@ namespace VtuberTts.Console
                 return;
             }
 
-            // Si el usuario ingresa el puerto 3902 (interfaz web/Vite de VoiceStudio),
-            // redirigir automáticamente al puerto 3900 (API FastAPI de síntesis)
-            if (url.Contains(":3902"))
-            {
-                url = url.Replace(":3902", ":3900");
-                TxtVoiceStudioUrl.Text = url;
-            }
-
             BtnConnectVoiceStudio.IsEnabled = false;
             LblVoiceStudioStatus.Text = "Conectando al API...";
             LblVoiceStudioStatus.Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)); // Amarillo
@@ -296,6 +288,53 @@ namespace VtuberTts.Console
             }
         }
 
+        private void SliderVoiceStudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_voiceManager?.VoiceStudioEngine?.Settings == null) return;
+            var s = _voiceManager.VoiceStudioEngine.Settings;
+
+            if (SliderGuidanceScale != null && LblGuidanceScale != null)
+            {
+                s.GuidanceScale = (float)SliderGuidanceScale.Value;
+                LblGuidanceScale.Text = $"{s.GuidanceScale:F1}";
+            }
+            if (SliderTShift != null && LblTShift != null)
+            {
+                s.TShift = (float)SliderTShift.Value;
+                LblTShift.Text = $"{s.TShift:F2}";
+            }
+            if (SliderPosTemp != null && LblPosTemp != null)
+            {
+                s.PositionTemperature = (float)SliderPosTemp.Value;
+                LblPosTemp.Text = $"{s.PositionTemperature:F1}";
+            }
+            if (SliderClassTemp != null && LblClassTemp != null)
+            {
+                s.ClassTemperature = (float)SliderClassTemp.Value;
+                LblClassTemp.Text = $"{s.ClassTemperature:F1}";
+            }
+            if (SliderLayerPenalty != null && LblLayerPenalty != null)
+            {
+                s.LayerPenaltyFactor = (float)SliderLayerPenalty.Value;
+                LblLayerPenalty.Text = $"{s.LayerPenaltyFactor:F1}";
+            }
+            if (SliderNumStep != null && LblNumStep != null)
+            {
+                s.NumStep = (int)SliderNumStep.Value;
+                LblNumStep.Text = $"{s.NumStep}";
+            }
+        }
+
+        private void ChkVoiceStudio_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_voiceManager?.VoiceStudioEngine?.Settings == null) return;
+            var s = _voiceManager.VoiceStudioEngine.Settings;
+
+            if (ChkBalanceVolume != null) s.BalanceVolume = ChkBalanceVolume.IsChecked == true;
+            if (ChkDenoise != null) s.Denoise = ChkDenoise.IsChecked == true;
+            if (ChkPostprocess != null) s.PostprocessOutput = ChkPostprocess.IsChecked == true;
+        }
+
         private string GetCurrentSelectedVoice()
         {
             if (ChkExternalModel?.IsChecked == true)
@@ -309,6 +348,11 @@ namespace VtuberTts.Console
         {
             if (ChkExternalModel?.IsChecked == true)
             {
+                string selected = CbLanguage.SelectedItem?.ToString() ?? "";
+                if (VoiceStudioApiEngine.IsVoiceStudioApiVoice(selected))
+                {
+                    return _voiceManager.VoiceStudioEngine.Settings.Language;
+                }
                 return "";
             }
             return CbLanguage.SelectedItem?.ToString() ?? "es-ES";

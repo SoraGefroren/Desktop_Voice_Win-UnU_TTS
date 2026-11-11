@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -10,39 +11,76 @@ using System.Threading.Tasks;
 namespace VtuberTts.Core
 {
     /// <summary>
-    /// Motor cliente para conectarse con una API REST externa compatible con VoiceStudio / OpenAI TTS.
-    /// Permite descubrir perfiles/voces disponibles y sintetizar texto a archivo WAV.
-    /// 
-    /// Arquitectura de VoiceStudio:
-    ///   - Puerto 3900: Python FastAPI backend (API real) → usar este
-    ///   - Puerto 3902: Electron UI frontend → NO usar para API
-    /// 
-    /// Endpoints utilizados:
-    ///   - GET  {baseUrl}/api/profiles → lista de perfiles [{id, name, ...}]
-    ///   - POST {baseUrl}/v1/audio/speech → síntesis (compatible OpenAI)
-    ///     Body: { model, input, voice, response_format, speed }
-    ///     Response: bytes WAV binarios directos
+    /// Configuración de parámetros avanzados de síntesis de VoiceStudio.
+    /// Homologados exactamente con la interfaz y motor de VoiceStudio (OmniVoice).
+    /// </summary>
+    public sealed class VoiceStudioSettings
+    {
+        /// <summary>Influencia de la indicación (guidance_scale). Predeterminado: 2.0</summary>
+        public float GuidanceScale { get; set; } = 2.0f;
+
+        /// <summary>Momento del refinamiento (t_shift). Predeterminado: 0.10</summary>
+        public float TShift { get; set; } = 0.10f;
+
+        /// <summary>Variación del orden de muestreo (position_temperature). Predeterminado: 5.0</summary>
+        public float PositionTemperature { get; set; } = 5.0f;
+
+        /// <summary>Variación del sonido (class_temperature). Predeterminado: 0.0</summary>
+        public float ClassTemperature { get; set; } = 0.0f;
+
+        /// <summary>Equilibrio entre grueso y fino (layer_penalty_factor). Predeterminado: 5.0</summary>
+        public float LayerPenaltyFactor { get; set; } = 5.0f;
+
+        /// <summary>Refinamiento de voz / pasos de difusión (num_step). Predeterminado: 16</summary>
+        public int NumStep { get; set; } = 16;
+
+        /// <summary>Limpiar ruido de referencia (denoise). Predeterminado: true</summary>
+        public bool Denoise { get; set; } = true;
+
+        /// <summary>Pulir el audio generado (postprocess_output). Predeterminado: true</summary>
+        public bool PostprocessOutput { get; set; } = true;
+
+        /// <summary>Preprocesar audio de referencia (preprocess_prompt). Predeterminado: true</summary>
+        public bool PreprocessPrompt { get; set; } = true;
+
+        /// <summary>Equilibrar volumen / masterización (broadcast effect preset). Predeterminado: true</summary>
+        public bool BalanceVolume { get; set; } = true;
+
+        /// <summary>Preset de efectos DSP ("broadcast" para masterizado equilibrado, "none" para crudo)</summary>
+        public string EffectPreset => BalanceVolume ? "broadcast" : "none";
+
+        /// <summary>Profundidad de bits de audio PCM ("16", "24" o "32"). Predeterminado: "16"</summary>
+        public string WavBits { get; set; } = "16";
+
+        /// <summary>Idioma de síntesis (ej: "Spanish", "English", "Japanese"). Predeterminado: "Spanish"</summary>
+        public string Language { get; set; } = "Spanish";
+    }
+
+    /// <summary>
+    /// Motor cliente para conectarse con la API de VoiceStudio (OmniVoice).
+    /// Permite descubrir perfiles/voces disponibles y sintetizar texto a archivo WAV
+    /// con los mismos parámetros acústicos y de refinamiento que utiliza la interfaz oficial de VoiceStudio.
     /// </summary>
     public sealed class VoiceStudioApiEngine : IDisposable
     {
         public const string ExternalVoiceDisplayName = "VoiceStudio Api (Externo)";
 
-        // HttpClient con timeout extendido (VoiceStudio puede tardar hasta 5 min en cargar el modelo)
         private readonly HttpClient _httpClient;
-        private string _baseUrl = "http://localhost:3900";
+        private string _baseUrl = "http://localhost:3902";
 
-        // Separamos nombre visible del ID real que enviar en la petición
-        private string _selectedProfileId   = string.Empty;
+        private string _selectedProfileId = string.Empty;
         private string _selectedProfileName = string.Empty;
 
-        // Diccionario nombre → id para resolver la selección del ComboBox
+        // Diccionario nombre visible → id de perfil
         private Dictionary<string, string> _profileMap = new();
+
+        /// <summary>Parámetros avanzados de síntesis homologados con VoiceStudio</summary>
+        public VoiceStudioSettings Settings { get; } = new VoiceStudioSettings();
 
         public VoiceStudioApiEngine(HttpClient? httpClient = null)
         {
             _httpClient = httpClient ?? new HttpClient
             {
-                // Timeout largo: el primer request puede tardar mientras VoiceStudio carga el modelo
                 Timeout = TimeSpan.FromSeconds(300)
             };
         }
@@ -50,28 +88,12 @@ namespace VtuberTts.Core
         public string BaseUrl
         {
             get => _baseUrl;
-            set
-            {
-                string raw = (value ?? string.Empty).Trim().TrimEnd('/');
-                // Si el usuario ingresa el puerto 3902 (interfaz web/Vite de VoiceStudio),
-                // redirigir automáticamente al puerto 3900 (API FastAPI de síntesis)
-                if (raw.Contains(":3902"))
-                {
-                    raw = raw.Replace(":3902", ":3900");
-                }
-                _baseUrl = raw;
-            }
+            set => _baseUrl = (value ?? string.Empty).Trim().TrimEnd('/');
         }
 
-        /// <summary>Nombre visible del perfil seleccionado (mostrado en ComboBox).</summary>
         public string SelectedProfileName => _selectedProfileName;
-
-        /// <summary>ID interno del perfil seleccionado (enviado al API).</summary>
         public string SelectedProfileId => _selectedProfileId;
 
-        /// <summary>
-        /// True cuando hay URL y perfil configurados listos para sintetizar.
-        /// </summary>
         public bool IsConfigured =>
             !string.IsNullOrWhiteSpace(_baseUrl) &&
             !string.IsNullOrWhiteSpace(_selectedProfileId);
@@ -80,26 +102,19 @@ namespace VtuberTts.Core
             !string.IsNullOrEmpty(voiceName) &&
             string.Equals(voiceName, ExternalVoiceDisplayName, StringComparison.OrdinalIgnoreCase);
 
-        /// <summary>
-        /// Establece la URL base y el perfil seleccionado a partir del nombre visible.
-        /// Resuelve el ID interno usando el mapa cargado en FetchProfilesAsync.
-        /// </summary>
         public void SetConfig(string baseUrl, string profileName)
         {
             BaseUrl = baseUrl;
             _selectedProfileName = (profileName ?? string.Empty).Trim();
 
-            // Intentar resolver el ID desde el mapa; si no existe, usar el nombre como ID fallback
             if (_profileMap.TryGetValue(_selectedProfileName, out var id) && !string.IsNullOrWhiteSpace(id))
                 _selectedProfileId = id;
             else
-                _selectedProfileId = _selectedProfileName; // fallback: usar nombre como ID
+                _selectedProfileId = _selectedProfileName;
         }
 
         /// <summary>
         /// Consulta la API de VoiceStudio para obtener los perfiles o voces disponibles.
-        /// Devuelve lista de nombres visibles (para mostrar en ComboBox).
-        /// Internamente guarda también los IDs en el mapa.
         /// </summary>
         public async Task<List<string>> FetchProfilesAsync(string? baseUrl = null, CancellationToken cancellationToken = default)
         {
@@ -107,7 +122,7 @@ namespace VtuberTts.Core
             if (string.IsNullOrWhiteSpace(url))
                 throw new ArgumentException("La URL del API de VoiceStudio no puede estar vacía.");
 
-            // Rutas habituales para perfiles — probar en orden de preferencia
+            // Rutas para descubrir perfiles tanto en el frontend web (3902) como en el backend directo (3900)
             string[] probePaths = { "/api/profiles", "/profiles", "/api/voices", "/voices" };
             Exception? lastEx = null;
 
@@ -137,82 +152,130 @@ namespace VtuberTts.Core
             }
 
             if (lastEx != null)
-                throw new HttpRequestException(
-                    $"No se pudo conectar con el servidor VoiceStudio en '{url}': {lastEx.Message}", lastEx);
+                throw new HttpRequestException($"No se pudo conectar con el servidor VoiceStudio en '{url}': {lastEx.Message}", lastEx);
 
-            throw new HttpRequestException(
-                $"El servidor en '{url}' respondió, pero no devolvió ningún perfil ni lista de voces válida.\n" +
-                "Verifica que la URL sea la del backend Python (ej. http://localhost:3900), no la del frontend Electron.");
+            throw new HttpRequestException($"El servidor en '{url}' respondió, pero no devolvió ningún perfil ni lista de voces válida.");
         }
 
         /// <summary>
-        /// Sintetiza texto a audio WAV usando el endpoint OpenAI-compatible de VoiceStudio.
-        /// Endpoint: POST {baseUrl}/v1/audio/speech
-        /// Body: { "model": "tts-1", "input": text, "voice": profileId, "response_format": "wav", "speed": N }
-        /// Response: bytes WAV directos (no JSON)
+        /// Sintetiza texto a audio WAV utilizando los valores y endpoints de VoiceStudio.
+        /// Intenta primero el endpoint nativo /api/generate (o /generate) con multipart/form-data
+        /// para aplicar exactamente el mismo procesado DSP, volumen equilibrado y parámetros avanzados.
+        /// En caso de contingencia, recurre a /api/v1/audio/speech.
         /// </summary>
         public async Task SynthesizeToWavAsync(
             string text,
             string outputPath,
+            string language = "",
             float speed = 1.0f,
             float pitch = 1.0f,
             float volume = 1.0f,
             CancellationToken cancellationToken = default)
         {
             if (!IsConfigured)
-                throw new InvalidOperationException(
-                    "VoiceStudio API no está configurado. Ingresa el enlace del API backend (ej. http://localhost:3900), " +
-                    "presiona 'Cargar' y selecciona un perfil de voz.");
+                throw new InvalidOperationException("VoiceStudio API no está configurado. Carga un perfil de voz antes de sintetizar.");
 
-            // Endpoint único y correcto para VoiceStudio (OpenAI-compatible)
-            string target = _baseUrl.TrimEnd('/') + "/v1/audio/speech";
+            string resolvedLang = !string.IsNullOrWhiteSpace(language)
+                ? NormalizeLanguage(language)
+                : Settings.Language;
 
-            // Payload compatible con la API de VoiceStudio (OpenAI TTS format)
+            string cultureInvariantSpeed = speed.ToString("0.00", CultureInfo.InvariantCulture);
+
+            // ── 1. Intentar endpoint nativo de VoiceStudio (/api/generate o /generate) ──
+            // Este es el endpoint idéntico al botón "Sintetizar audio" de la UI de VoiceStudio.
+            string[] generateEndpoints = { "/api/generate", "/generate" };
+
+            foreach (var path in generateEndpoints)
+            {
+                try
+                {
+                    string target = _baseUrl.TrimEnd('/') + path;
+                    using var form = new MultipartFormDataContent();
+
+                    form.Add(new StringContent(text, Encoding.UTF8), "text");
+                    form.Add(new StringContent(_selectedProfileId), "profile_id");
+                    form.Add(new StringContent(resolvedLang), "language");
+                    form.Add(new StringContent(cultureInvariantSpeed), "speed");
+
+                    // Parámetros avanzados del modelo
+                    form.Add(new StringContent(Settings.GuidanceScale.ToString("0.0", CultureInfo.InvariantCulture)), "guidance_scale");
+                    form.Add(new StringContent(Settings.TShift.ToString("0.00", CultureInfo.InvariantCulture)), "t_shift");
+                    form.Add(new StringContent(Settings.PositionTemperature.ToString("0.0", CultureInfo.InvariantCulture)), "position_temperature");
+                    form.Add(new StringContent(Settings.ClassTemperature.ToString("0.0", CultureInfo.InvariantCulture)), "class_temperature");
+                    form.Add(new StringContent(Settings.LayerPenaltyFactor.ToString("0.0", CultureInfo.InvariantCulture)), "layer_penalty_factor");
+                    form.Add(new StringContent(Settings.NumStep.ToString()), "num_step");
+
+                    // Controles de calidad y DSP
+                    form.Add(new StringContent(Settings.Denoise ? "true" : "false"), "denoise");
+                    form.Add(new StringContent(Settings.PostprocessOutput ? "true" : "false"), "postprocess_output");
+                    form.Add(new StringContent(Settings.EffectPreset), "effect_preset");
+                    form.Add(new StringContent(Settings.WavBits), "wav_bits");
+
+                    using var request = new HttpRequestMessage(HttpMethod.Post, target) { Content = form };
+                    using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+                        if (data.Length > 0 && !IsJsonBytes(data))
+                        {
+                            await File.WriteAllBytesAsync(outputPath, data, cancellationToken);
+                            return;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fallback al siguiente endpoint
+                }
+            }
+
+            // ── 2. Fallback: Endpoint OpenAI-compatible (/api/v1/audio/speech o /v1/audio/speech) ──
+            string[] speechEndpoints = { "/api/v1/audio/speech", "/v1/audio/speech" };
+
             var payload = new
             {
-                model          = "tts-1",
-                input          = text,
-                voice          = _selectedProfileId,  // ID del perfil, no el nombre
+                model = "omnivoice",
+                input = text,
+                voice = _selectedProfileId,
                 response_format = "wav",
-                speed          = (double)Math.Clamp(speed, 0.25f, 4.0f)
+                speed = (double)Math.Clamp(speed, 0.25f, 4.0f),
+                guidance_scale = Settings.GuidanceScale,
+                t_shift = Settings.TShift,
+                position_temperature = Settings.PositionTemperature,
+                class_temperature = Settings.ClassTemperature,
+                layer_penalty_factor = Settings.LayerPenaltyFactor,
+                num_step = Settings.NumStep,
+                denoise = Settings.Denoise,
+                preprocess_prompt = Settings.PreprocessPrompt,
+                language = resolvedLang
             };
 
             string jsonBody = JsonSerializer.Serialize(payload);
 
-            try
+            foreach (var path in speechEndpoints)
             {
-                using var request = new HttpRequestMessage(HttpMethod.Post, target)
+                try
                 {
-                    Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
-                };
-
-                // Leer respuesta completa como stream para manejar archivos grandes
-                using var response = await _httpClient.SendAsync(
-                    request,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    cancellationToken);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    string errBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                    throw new HttpRequestException(
-                        $"El API de VoiceStudio respondió con error {(int)response.StatusCode}: {response.ReasonPhrase}\n{errBody}");
-                }
-
-                byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-
-                if (data.Length == 0)
-                    throw new HttpRequestException("El API de VoiceStudio devolvió una respuesta vacía.");
-
-                // Verificar si la respuesta es JSON con audio en base64 (fallback)
-                if (IsJsonBytes(data))
-                {
-                    string jsonStr = Encoding.UTF8.GetString(data);
-                    try
+                    string target = _baseUrl.TrimEnd('/') + path;
+                    using var request = new HttpRequestMessage(HttpMethod.Post, target)
                     {
+                        Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
+                    };
+
+                    using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    if (!response.IsSuccessStatusCode)
+                        continue;
+
+                    byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+                    if (data.Length == 0)
+                        continue;
+
+                    if (IsJsonBytes(data))
+                    {
+                        string jsonStr = Encoding.UTF8.GetString(data);
                         using var doc = JsonDocument.Parse(jsonStr);
-                        JsonElement audioProp;
-                        if (doc.RootElement.TryGetProperty("audio", out audioProp)       ||
+                        if (doc.RootElement.TryGetProperty("audio", out var audioProp) ||
                             doc.RootElement.TryGetProperty("audio_base64", out audioProp) ||
                             doc.RootElement.TryGetProperty("data", out audioProp))
                         {
@@ -220,38 +283,41 @@ namespace VtuberTts.Core
                             if (!string.IsNullOrEmpty(b64))
                                 data = Convert.FromBase64String(b64);
                         }
-                        else if (doc.RootElement.TryGetProperty("error", out var errProp))
-                        {
-                            throw new HttpRequestException(
-                                $"Error desde VoiceStudio API: {errProp.GetString()}");
-                        }
                     }
-                    catch (JsonException)
-                    {
-                        // No es JSON válido — asumir que son bytes WAV directos
-                    }
-                }
 
-                await File.WriteAllBytesAsync(outputPath, data, cancellationToken);
+                    await File.WriteAllBytesAsync(outputPath, data, cancellationToken);
+                    return;
+                }
+                catch
+                {
+                    // Continuar al siguiente endpoint
+                }
             }
-            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                throw new TimeoutException(
-                    "El API de VoiceStudio tardó demasiado en responder (>5 min). " +
-                    "El modelo puede estar cargándose por primera vez. Inténtalo nuevamente en unos segundos.");
-            }
+
+            throw new HttpRequestException("No se pudo sintetizar audio en VoiceStudio API. Verifica que VoiceStudio esté en ejecución.");
         }
 
-        // ─── Parsing de perfiles ─────────────────────────────────────────────────
+        public static string NormalizeLanguage(string lang)
+        {
+            if (string.IsNullOrWhiteSpace(lang)) return "Spanish";
+            string l = lang.Trim().ToLowerInvariant();
+            if (l.StartsWith("es")) return "Spanish";
+            if (l.StartsWith("en")) return "English";
+            if (l.StartsWith("ja")) return "Japanese";
+            if (l.StartsWith("zh")) return "Chinese";
+            if (l.StartsWith("fr")) return "French";
+            if (l.StartsWith("de")) return "German";
+            if (l.StartsWith("it")) return "Italian";
+            if (l.StartsWith("pt")) return "Portuguese";
+            if (l.StartsWith("ru")) return "Russian";
+            if (l.StartsWith("ko")) return "Korean";
+            return lang;
+        }
 
-        /// <summary>
-        /// Parsea la respuesta JSON de /api/profiles y devuelve (lista de nombres, mapa nombre→id).
-        /// Soporta: array de strings, array de {id, name, ...}, objeto con propiedad "profiles"/"voices".
-        /// </summary>
         private static (List<string> names, Dictionary<string, string> map) ParseProfilesFromJson(string json)
         {
             var names = new List<string>();
-            var map   = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             try
             {
@@ -264,7 +330,6 @@ namespace VtuberTts.Core
                 }
                 else if (root.ValueKind == JsonValueKind.Object)
                 {
-                    // Buscar propiedad que contenga el array
                     foreach (var key in new[] { "profiles", "voices", "data", "results" })
                     {
                         if (root.TryGetProperty(key, out var arr) && arr.ValueKind == JsonValueKind.Array)
@@ -275,10 +340,7 @@ namespace VtuberTts.Core
                     }
                 }
             }
-            catch
-            {
-                // JSON inválido → devolver vacío
-            }
+            catch { }
 
             return (names, map);
         }
@@ -296,18 +358,17 @@ namespace VtuberTts.Core
                     if (!string.IsNullOrWhiteSpace(str) && !names.Contains(str))
                     {
                         names.Add(str);
-                        map[str] = str; // Sin ID separado → usar el mismo valor
+                        map[str] = str;
                     }
                 }
                 else if (item.ValueKind == JsonValueKind.Object)
                 {
-                    // Extraer nombre e ID del objeto perfil
-                    string? id   = null;
+                    string? id = null;
                     string? name = null;
 
-                    if (item.TryGetProperty("id",      out var idProp)   && idProp.ValueKind   == JsonValueKind.String)
-                        id   = idProp.GetString();
-                    if (item.TryGetProperty("name",    out var nameProp)  && nameProp.ValueKind  == JsonValueKind.String)
+                    if (item.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.String)
+                        id = idProp.GetString();
+                    if (item.TryGetProperty("name", out var nameProp) && nameProp.ValueKind == JsonValueKind.String)
                         name = nameProp.GetString();
                     if (string.IsNullOrWhiteSpace(name))
                     {
@@ -317,9 +378,8 @@ namespace VtuberTts.Core
                             name = dnProp.GetString();
                     }
 
-                    // Usar nombre como clave visible; ID como valor para la API
                     string displayName = name ?? id ?? string.Empty;
-                    string resolvedId  = id   ?? name ?? string.Empty;
+                    string resolvedId = id ?? name ?? string.Empty;
 
                     if (!string.IsNullOrWhiteSpace(displayName) && !names.Contains(displayName))
                     {
@@ -333,7 +393,6 @@ namespace VtuberTts.Core
         private static bool IsJsonBytes(byte[] bytes)
         {
             if (bytes.Length < 2) return false;
-            // WAV comienza con "RIFF"; JSON comienza con '{' o '['
             char first = (char)bytes[0];
             return first == '{' || first == '[';
         }
