@@ -569,6 +569,14 @@ namespace VtuberTts.Console
                 }
 
                 RtbInput.Document.Blocks.Add(p);
+
+                // Asegurar que el segmento activo se desplace a la vista visible en textos largos
+                try
+                {
+                    Run? activeRun = p.Inlines.OfType<Run>().FirstOrDefault(r => r.Tag is int idx && idx == activeIndex);
+                    activeRun?.BringIntoView();
+                }
+                catch { }
             }
             finally
             {
@@ -576,8 +584,53 @@ namespace VtuberTts.Console
             }
         }
 
+        private static bool IsClickOnScrollBar(object? source)
+        {
+            try
+            {
+                // 1. Si es un elemento del FlowDocument (Run, Paragraph, Span, etc.), es texto, no ScrollBar
+                if (source is FrameworkContentElement)
+                    return false;
+
+                // 2. Solo los controles visuales (Thumb, Track, RepeatButton, ScrollBar) se inspeccionan
+                if (source is Visual visual)
+                {
+                    DependencyObject? current = visual;
+                    while (current != null)
+                    {
+                        if (current is System.Windows.Controls.Primitives.ScrollBar ||
+                            current is System.Windows.Controls.Primitives.Thumb ||
+                            current is System.Windows.Controls.Primitives.Track ||
+                            current is System.Windows.Controls.Primitives.RepeatButton)
+                        {
+                            return true;
+                        }
+
+                        // VisualTreeHelper.GetParent solo es válido para Visual o Visual3D
+                        if (current is Visual v)
+                            current = VisualTreeHelper.GetParent(v);
+                        else
+                            break;
+                    }
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
+        }
+
         private void RtbInput_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            // Si el clic fue en la barra de scroll (thumb, track o botones), no interceptar
+            // para permitir arrastrar o hacer clic en el scroll sin pausar o saltar segmento
+            if (IsClickOnScrollBar(e.OriginalSource))
+            {
+                return;
+            }
+
             if (_isPlaying && _segments.Count > 0)
             {
                 Point mousePos = e.GetPosition(RtbInput);
