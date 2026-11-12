@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="8.5in"
+   height="8.5in"
+   viewBox="0 0 215.9 215.9"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.1.2 (b8e25be833, 2022-02-05)"
+   sodipodi:docname="icon.svg"
+   inkscape:export-filename="C:\Users\leonb\OneDrive\DrvSG\NodeJS\Voice-App\public\ics\icon.png"
+   inkscape:export-xdpi="30.120001"
+   inkscape:export-ydpi="30.120001"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.43852551"
+     inkscape:cx="369.41979"
+     inkscape:cy="287.3265"
+     inkscape:window-width="1350"
+     inkscape:window-height="729"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1"
+     units="in"
+     height="8.5in"
+     inkscape:snap-global="true"
+     inkscape:object-nodes="false"
+     inkscape:snap-others="true"
+     inkscape:snap-midpoints="true"
+     inkscape:snap-smooth-nodes="true"
+     inkscape:snap-intersection-paths="false"
+     inkscape:object-paths="false"
+     inkscape:snap-bbox="false"
+     inkscape:snap-nodes="true" />
+  <defs
+     id="defs2">
+    <inkscape:path-effect
+       effect="perspective-envelope"
+       up_left_point="5.9543563,97.047612"
+       up_right_point="93.635904,73.78112"
+       down_left_point="5.9543563,134.21927"
+       down_right_point="93.635904,158.13205"
+       id="path-effect93"
+       is_visible="true"
+       lpeversion="1"
+       deform_type="perspective"
+       horizontal_mirror="false"
+       vertical_mirror="false"
+       overflow_perspective="false" />
+    <inkscape:path-effect
+       effect="perspective-envelope"
+       up_left_point="5.9543563,97.047612"
+       up_right_point="93.635904,73.78112"
+       down_left_point="5.9543563,134.21927"
+       down_right_point="93.635904,158.13205"
+       id="path-effect93-1"
+       is_visible="true"
+       lpeversion="1"
+       deform_type="perspective"
+       horizontal_mirror="false"
+       vertical_mirror="false"
+       overflow_perspective="false" />
+  </defs>
+  <g
+     inkscape:label="Capa 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g5798-0"
+       transform="matrix(0.75316505,0,0,0.87755101,53.291665,13.218364)"
+       style="fill:#6f7174;fill-opacity:1"
+       inkscape:export-filename="C:\Users\leonb\OneDrive\DrvSG\NodeJS\Voice-App\public\ics\icon.png"
+       inkscape:export-xdpi="30.120001"
+       inkscape:export-ydpi="30.120001">
+      <g
+         id="g5793-5"
+         style="fill:#6f7174;fill-opacity:1">
+        <g
+           id="g5789-1"
+           style="fill:#6f7174;fill-opacity:1">
+          <path
+             id="rect5454-6"
+             style="fill:#6f7174;fill-opacity:1;stroke-width:1.65999"
+             d="M 429.72266,113.83203 V 702.16797 H 816 V 113.83203 Z m 344.58398,224.02149 c 6.29075,0 12.46914,0.91273 18.53516,2.74023 v 38.08398 c -3.29512,-0.97902 -5.84132,-1.46875 -7.63868,-1.46875 -3.44493,0 -6.40363,1.11097 -8.875,3.33008 -2.47133,2.21911 -3.70703,4.8945 -3.70703,8.02735 0,2.67598 1.34696,6.06974 4.04297,10.18164 l 3.48242,5.28711 c 6.2907,9.52909 9.4375,18.73097 9.4375,27.60742 0,12.98829 -5.31686,23.98717 -15.95117,32.99414 -10.55942,9.00697 -23.4784,13.50976 -38.75586,13.50976 -7.33918,0 -14.60357,-1.4692 -21.79297,-4.40625 v -38.66992 c 4.34359,2.41492 8.20029,3.6211 11.57032,3.6211 3.96913,0 7.26358,-0.97753 9.88476,-2.93555 2.69599,-2.02333 4.04492,-4.53676 4.04492,-7.53906 0,-1.95805 -2.13559,-6.23412 -6.40429,-12.82618 -6.81492,-10.44284 -10.22071,-20.88526 -10.22071,-31.32812 0,-12.5967 5.12882,-23.42971 15.38868,-32.50195 10.33476,-9.1375 22.65511,-13.70703 36.95898,-13.70703 z m -304.08984,3.32812 h 115.36718 v 38.37695 h -34.82421 v 95.25977 H 505.15234 V 379.55859 H 470.2168 Z m 118.40039,0 h 115.36719 v 38.37695 h -34.82422 v 95.25977 h -45.60743 v -95.25977 h -34.93554 z"
+             transform="matrix(0.35129529,0,0,0.30150194,-70.756954,-15.062787)" />
+        </g>
+      </g>
+    </g>
+    <g
+       id="g5798-0-6"
+       transform="matrix(0.72025535,0,0,0.78440309,56.782752,23.273681)"
+       style="fill:#7f8185;fill-opacity:1"
+       inkscape:export-filename="C:\Users\leonb\OneDrive\DrvSG\NodeJS\Voice-App\public\ics\icon.png"
+       inkscape:export-xdpi="30.120001"
+       inkscape:export-ydpi="30.120001">
+      <g
+         id="g5793-5-0"
+         style="fill:#7f8185;fill-opacity:1">
+        <g
+           id="g5789-1-1"
+           style="fill:#7f8185;fill-opacity:1">
+          <path
+             id="rect5454-6-80"
+             style="fill:#7f8185;fill-opacity:1;stroke-width:1.65999"
+             d="M 429.72266,113.83203 V 702.16797 H 809.72585 V 113.83203 Z"
+             transform="matrix(0.35129529,0,0,0.30150194,-70.756954,-15.062787)"
+             sodipodi:nodetypes="ccccc" />
+        </g>
+      </g>
+    </g>
+    <path
+       id="rect29"
+       style="fill:#212529;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.264583"
+       d="M 106.67876,1.0237074 0,25.894541 V 190.00545 l 106.67876,24.87083 z m -2.75849,67.5860546 v 53.654608 c 0,9.45774 -3.18906,16.50719 -9.241295,20.91138 -5.614442,4.12269 -12.55886,5.06912 -20.466968,3.18947 -7.129626,-1.6946 -12.152907,-5.00132 -15.442469,-9.8578 -3.112543,-4.6279 -4.616254,-10.5981 -4.616254,-18.06866 V 80.119137 l 16.732829,-3.869531 v 43.160674 c 0,4.12944 1.391555,6.33681 4.255037,6.6306 2.87333,0.2948 4.351155,-1.73831 4.351155,-6.10815 V 74.259029 Z M 18.77043,88.301583 v 28.394647 c 0,5.00512 -0.900716,8.86111 -2.652034,11.49336 -1.675956,2.53941 -3.820715,3.45946 -6.3655031,2.8546 -2.3936057,-0.56892 -4.140174,-2.23868 -5.3118204,-4.97282 -1.1297259,-2.65615 -1.6825846,-6.22803 -1.6825846,-10.76988 V 92.004717 l 5.889563,-1.362191 v 24.990204 c 0,2.39092 0.4650285,3.63412 1.4097331,3.73104 0.932776,0.0957 1.406632,-1.09092 1.406632,-3.56051 V 89.991402 Z m 16.024344,9.345165 c 3.387641,-0.04166 6.301722,1.657263 8.652185,5.206922 2.111774,3.17942 3.195672,7.7939 3.195672,13.75936 v 21.7904 l -11.060824,-2.50269 v -21.23591 c 0,-2.16257 -0.633802,-3.24936 -1.879989,-3.26026 -1.201754,-0.0105 -1.792656,1.0303 -1.792656,3.12228 v 20.54294 l -8.673371,-1.96267 V 114.4359 c 0,-4.36554 0.926585,-8.07432 2.831351,-11.21275 1.97791,-3.282409 4.506406,-5.145062 7.661031,-5.507671 0.360481,-0.04144 0.716155,-0.06442 1.066601,-0.06873 z"
+       inkscape:export-filename="C:\Users\leonb\OneDrive\DrvSG\NodeJS\Voice-App\public\ics\icon.png"
+       inkscape:export-xdpi="30.120001"
+       inkscape:export-ydpi="30.120001" />
+    <path
+       id="rect29-28"
+       style="fill:#2e3439;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.236046"
+       d="M 99.269216,11.342213 5.2928777,33.812984 V 182.087 l 93.9763383,22.47077 z"
+       inkscape:export-filename="C:\Users\leonb\OneDrive\DrvSG\NodeJS\Voice-App\public\ics\icon.png"
+       inkscape:export-xdpi="30.120001"
+       inkscape:export-ydpi="30.120001"
+       sodipodi:nodetypes="ccccc" />
+    <g
+       id="g5798-0-4"
+       transform="matrix(0.75316505,0,0,0.87755101,53.291665,13.218364)"
+       style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-opacity:1;stroke-width:0;stroke-miterlimit:4;stroke-dasharray:none"
+       inkscape:export-filename="C:\Users\leonb\OneDrive\DrvSG\NodeJS\Voice-App\public\ics\icon.png"
+       inkscape:export-xdpi="30.120001"
+       inkscape:export-ydpi="30.120001">
+      <g
+         id="g5793-5-8"
+         style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-opacity:1;stroke-width:0;stroke-miterlimit:4;stroke-dasharray:none">
+        <g
+           id="g5789-1-7"
+           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-opacity:1;stroke-width:0;stroke-miterlimit:4;stroke-dasharray:none">
+          <path
+             id="rect5454-6-8"
+             style="fill:#ffffff;fill-opacity:1;stroke-width:0;stroke:none;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+             d="m 774.30664,337.85352 c 6.29075,0 12.46914,0.91273 18.53516,2.74023 v 38.08398 c -3.29512,-0.97902 -5.84132,-1.46875 -7.63868,-1.46875 -3.44493,0 -6.40363,1.11097 -8.875,3.33008 -2.47133,2.21911 -3.70703,4.8945 -3.70703,8.02735 0,2.67598 1.34696,6.06974 4.04297,10.18164 l 3.48242,5.28711 c 6.2907,9.52909 9.4375,18.73097 9.4375,27.60742 0,12.98829 -5.31686,23.98717 -15.95117,32.99414 -10.55942,9.00697 -23.4784,13.50976 -38.75586,13.50976 -7.33918,0 -14.60357,-1.4692 -21.79297,-4.40625 v -38.66992 c 4.34359,2.41492 8.20029,3.6211 11.57032,3.6211 3.96913,0 7.26358,-0.97753 9.88476,-2.93555 2.69599,-2.02333 4.04492,-4.53676 4.04492,-7.53906 0,-1.95805 -2.13559,-6.23412 -6.40429,-12.82618 -6.81492,-10.44284 -10.22071,-20.88526 -10.22071,-31.32812 0,-12.5967 5.12882,-23.42971 15.38868,-32.50195 10.33476,-9.1375 22.65511,-13.70703 36.95898,-13.70703 z m -304.08984,3.32812 h 115.36718 v 38.37695 h -34.82421 v 95.25977 H 505.15234 V 379.55859 H 470.2168 Z m 118.40039,0 h 115.36719 v 38.37695 h -34.82422 v 95.25977 h -45.60743 v -95.25977 h -34.93554 z"
+             transform="matrix(0.35129529,0,0,0.30150194,-70.756954,-15.062787)"
+             sodipodi:nodetypes="sccsssccscsccscscscscccccccccccccccccc" />
+        </g>
+      </g>
+    </g>
+    <path
+       id="rect29-1"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+       d="m 103.92027,68.609762 v 53.654608 c 0,9.45774 -3.18906,16.50719 -9.241295,20.91138 -5.614442,4.12269 -12.55886,5.06912 -20.466968,3.18947 -7.129626,-1.6946 -12.152907,-5.00132 -15.442469,-9.8578 -3.112543,-4.6279 -4.616254,-10.5981 -4.616254,-18.06866 V 80.119137 l 16.732829,-3.869531 v 43.160674 c 0,4.12944 1.391555,6.33681 4.255037,6.6306 2.87333,0.2948 4.351155,-1.73831 4.351155,-6.10815 V 74.259029 Z M 18.77043,88.301583 v 28.394647 c 0,5.00512 -0.900716,8.86111 -2.652034,11.49336 -1.675956,2.53941 -3.820715,3.45946 -6.365503,2.8546 -2.393606,-0.56892 -4.140174,-2.23868 -5.311821,-4.97282 -1.129725,-2.65615 -1.682584,-6.22803 -1.682584,-10.76988 V 92.004717 l 5.889563,-1.362191 v 24.990204 c 0,2.39092 0.465028,3.63412 1.409733,3.73104 0.932776,0.0957 1.406632,-1.09092 1.406632,-3.56051 V 89.991402 Z m 16.024344,9.345165 c 3.387641,-0.04166 6.301722,1.657263 8.652185,5.206922 2.111774,3.17942 3.195672,7.7939 3.195672,13.75936 v 21.7904 l -11.060824,-2.50269 v -21.23591 c 0,-2.16257 -0.633802,-3.24936 -1.879989,-3.26026 -1.201754,-0.0105 -1.792656,1.0303 -1.792656,3.12228 v 20.54294 l -8.673371,-1.96267 V 114.4359 c 0,-4.36554 0.926585,-8.07432 2.831351,-11.21275 1.97791,-3.282409 4.506406,-5.145062 7.661031,-5.507671 0.360481,-0.04144 0.716155,-0.06442 1.066601,-0.06873 z"
+       sodipodi:nodetypes="cscscsccssscccscscsccsssccscsccsssccscsss"
+       inkscape:export-filename="C:\Users\leonb\OneDrive\DrvSG\NodeJS\Voice-App\public\ics\icon.png"
+       inkscape:export-xdpi="30.120001"
+       inkscape:export-ydpi="30.120001" />
+    <path
+       id="rect29-2"
+       style="fill:#212529;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.264583"
+       d="M 121.17917,20.603051 106.67875,1.0238848 V 214.87611 l 14.50042,-19.57917 z"
+       sodipodi:nodetypes="ccccc"
+       inkscape:export-filename="C:\Users\leonb\OneDrive\DrvSG\NodeJS\Voice-App\public\ics\icon.png"
+       inkscape:export-xdpi="30.120001"
+       inkscape:export-ydpi="30.120001" />
+  </g>
+</svg>

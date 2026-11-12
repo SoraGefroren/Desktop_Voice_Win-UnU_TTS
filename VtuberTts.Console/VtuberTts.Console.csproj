@@ -8,7 +8,15 @@
     <UseWPF>true</UseWPF>
     <!-- Deshabilitar auditoría de vulnerabilidades NuGet (sin conexión a internet) -->
     <NuGetAudit>false</NuGetAudit>
+    <!-- Icono de la aplicación ejecutable para Windows (.exe y barra de tareas) -->
+    <ApplicationIcon>..\__Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <!-- Recursos incrustados para la interfaz WPF -->
+  <ItemGroup>
+    <Resource Include="..\__Assets\icon.ico" Link="__Assets\icon.ico" />
+    <Resource Include="..\__Assets\icon.png" Link="__Assets\icon.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\VtuberTts.Core\VtuberTts.Core.csproj" />
