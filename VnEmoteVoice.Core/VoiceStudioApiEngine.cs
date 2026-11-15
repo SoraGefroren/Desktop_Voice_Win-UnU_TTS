@@ -8,7 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace VtuberTts.Core
+namespace VnEmoteVoice.Core
 {
     /// <summary>
     /// Configuración de parámetros avanzados de síntesis de VoiceStudio.

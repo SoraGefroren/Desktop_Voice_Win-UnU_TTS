@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using NAudio.Wave;
 using Windows.Media.SpeechSynthesis;
 
-namespace VtuberTts.Core
+namespace VnEmoteVoice.Core
 {
     public class VoiceManager
     {

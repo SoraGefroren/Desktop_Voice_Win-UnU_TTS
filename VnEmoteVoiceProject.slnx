@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="VnEmoteVoice.Console\VnEmoteVoice.Console.csproj" />
+  <Project Path="VnEmoteVoice.Core\VnEmoteVoice.Core.csproj" />
+</Solution>

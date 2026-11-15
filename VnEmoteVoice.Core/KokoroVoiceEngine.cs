@@ -11,7 +11,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using MisakiSharp;
 using NAudio.Wave;
 
-namespace VtuberTts.Core
+namespace VnEmoteVoice.Core
 {
     /// <summary>
     /// Motor TTS local basado en Kokoro (ONNX). Expone voces con formato intuitivo
@@ -146,7 +146,7 @@ namespace VtuberTts.Core
         private string? _modelsDir;
 
         /// <summary>
-        /// Valida si el archivo VtuberTts.Core.csproj declara los modelos
+        /// Valida si el archivo VnEmoteVoice.Core.csproj declara los modelos
         /// "kokoro-v1.0.onnx" y "voices-v1.0.bin".
         /// </summary>
         public static bool HasKokoroModelsInCsproj()
@@ -156,8 +156,8 @@ namespace VtuberTts.Core
                 var dir = new DirectoryInfo(AppContext.BaseDirectory);
                 while (dir != null)
                 {
-                    string candidate1 = Path.Combine(dir.FullName, "VtuberTts.Core", "VtuberTts.Core.csproj");
-                    string candidate2 = Path.Combine(dir.FullName, "VtuberTts.Core.csproj");
+                    string candidate1 = Path.Combine(dir.FullName, "VnEmoteVoice.Core", "VnEmoteVoice.Core.csproj");
+                    string candidate2 = Path.Combine(dir.FullName, "VnEmoteVoice.Core.csproj");
                     string? csprojPath = File.Exists(candidate1) ? candidate1 : (File.Exists(candidate2) ? candidate2 : null);
 
                     if (csprojPath != null)
@@ -178,7 +178,7 @@ namespace VtuberTts.Core
         }
 
         /// <summary>
-        /// True si VtuberTts.Core.csproj contiene los modelos declarados Y existen físicamente en disco.
+        /// True si VnEmoteVoice.Core.csproj contiene los modelos declarados Y existen físicamente en disco.
         /// Si alguna condición no se cumple, las voces de Kokoro no estarán disponibles ni se mostrarán.
         /// </summary>
         public bool IsAvailable => HasKokoroModelsInCsproj() && FindModelsDir() != null;

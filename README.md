@@ -1,2 +1,2 @@
-# Desktop_Voice_Win-UnU_TTS
-TTS application for Windows using available Windows voices.
+# Vn Emote Voice (TTS)
+Aplicación TTS para Windows con análisis emocional, integración con VoiceStudio API, motores locales Piper y Kokoro, y exportación segmentada.

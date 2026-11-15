@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Windows;
 
-namespace VtuberTts.Console
+namespace VnEmoteVoice.Console
 {
     public partial class App : Application
     {
@@ -18,7 +18,17 @@ namespace VtuberTts.Console
 
             DispatcherUnhandledException += (sender, args) =>
             {
-                MessageBox.Show($"Error en la interfaz: {args.Exception.Message}\n\n{args.Exception.StackTrace}", "Error de UI", MessageBoxButton.OK, MessageBoxImage.Error);
+                var sb = new System.Text.StringBuilder();
+                Exception? ex = args.Exception;
+                while (ex != null)
+                {
+                    sb.AppendLine($"[{ex.GetType().Name}]: {ex.Message}");
+                    sb.AppendLine(ex.StackTrace);
+                    sb.AppendLine("------------------");
+                    ex = ex.InnerException;
+                }
+                try { System.IO.File.WriteAllText("crash_log.txt", sb.ToString()); } catch { }
+                MessageBox.Show($"Error en la interfaz:\n\n{sb}", "Error de UI", MessageBoxButton.OK, MessageBoxImage.Error);
                 args.Handled = true;
             };
         }

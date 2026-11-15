@@ -10,9 +10,9 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.Win32;
-using VtuberTts.Core;
+using VnEmoteVoice.Core;
 
-namespace VtuberTts.Console
+namespace VnEmoteVoice.Console
 {
     public partial class MainWindow : Window
     {

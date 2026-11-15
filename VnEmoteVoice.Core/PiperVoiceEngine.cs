@@ -11,7 +11,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using MisakiSharp;
 using NAudio.Wave;
 
-namespace VtuberTts.Core
+namespace VnEmoteVoice.Core
 {
     /// <summary>
     /// Motor TTS local basado en Piper (ONNX).

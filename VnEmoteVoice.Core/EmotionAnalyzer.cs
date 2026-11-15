@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace VtuberTts.Core
+namespace VnEmoteVoice.Core
 {
     public class TextSegment
     {

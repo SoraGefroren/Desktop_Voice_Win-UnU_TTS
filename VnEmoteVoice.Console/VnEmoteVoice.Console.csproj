@@ -8,6 +8,7 @@
     <UseWPF>true</UseWPF>
     <!-- Deshabilitar auditoría de vulnerabilidades NuGet (sin conexión a internet) -->
     <NuGetAudit>false</NuGetAudit>
+    <NoWarn>$(NoWarn);NU1900</NoWarn>
     <!-- Icono de la aplicación ejecutable para Windows (.exe y barra de tareas) -->
     <ApplicationIcon>..\__Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
@@ -19,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\VtuberTts.Core\VtuberTts.Core.csproj" />
+    <ProjectReference Include="..\VnEmoteVoice.Core\VnEmoteVoice.Core.csproj" />
   </ItemGroup>
 
 </Project>
