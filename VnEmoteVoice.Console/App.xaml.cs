@@ -1,36 +1,65 @@
 using System;
+using System.IO;
+using System.Text;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace VnEmoteVoice.Console
 {
     public partial class App : Application
     {
-        protected override void OnStartup(StartupEventArgs e)
+        public App()
         {
-            base.OnStartup(e);
-
-            // Capturar cualquier error no controlado al iniciar la interfaz
+            // Registrar capturadores de errores antes de que se cargue cualquier ventana
             AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
             {
-                var ex = args.ExceptionObject as Exception;
-                MessageBox.Show($"Error crítico no controlado: {ex?.Message}\n\n{ex?.StackTrace}", "Error Fatal", MessageBoxButton.OK, MessageBoxImage.Error);
+                LogCrash("AppDomain.UnhandledException", args.ExceptionObject as Exception);
             };
 
             DispatcherUnhandledException += (sender, args) =>
             {
-                var sb = new System.Text.StringBuilder();
-                Exception? ex = args.Exception;
-                while (ex != null)
-                {
-                    sb.AppendLine($"[{ex.GetType().Name}]: {ex.Message}");
-                    sb.AppendLine(ex.StackTrace);
-                    sb.AppendLine("------------------");
-                    ex = ex.InnerException;
-                }
-                try { System.IO.File.WriteAllText("crash_log.txt", sb.ToString()); } catch { }
-                MessageBox.Show($"Error en la interfaz:\n\n{sb}", "Error de UI", MessageBoxButton.OK, MessageBoxImage.Error);
+                LogCrash("DispatcherUnhandledException", args.Exception);
                 args.Handled = true;
             };
+        }
+
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            try
+            {
+                base.OnStartup(e);
+            }
+            catch (Exception ex)
+            {
+                LogCrash("OnStartup.Exception", ex);
+                throw;
+            }
+        }
+
+        private static void LogCrash(string source, Exception? ex)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"=== CRASH LOG [{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ({source}) ===");
+            Exception? curr = ex;
+            while (curr != null)
+            {
+                sb.AppendLine($"[{curr.GetType().FullName}]: {curr.Message}");
+                sb.AppendLine(curr.StackTrace);
+                sb.AppendLine("----------------------------------------");
+                curr = curr.InnerException;
+            }
+
+            string logText = sb.ToString();
+
+            // Guardar en directorio de trabajo y en directorio del ejecutable
+            try { File.WriteAllText("crash_log.txt", logText); } catch { }
+            try { File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash_log.txt"), logText); } catch { }
+
+            MessageBox.Show(
+                $"Se produjo un error al iniciar Vn Emote Voice:\n\n{logText}",
+                "Error de Inicio - Vn Emote Voice",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 }

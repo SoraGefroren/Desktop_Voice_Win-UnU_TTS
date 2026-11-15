@@ -215,11 +215,19 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- Indicador de Emoción del Avatar -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0">
-                <TextBlock x:Name="LblEmotionEmoji" Text="😐" FontSize="24" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock x:Name="LblEmotionName" Text="Neutral" Foreground="#e2e8f0" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-            </StackPanel>
+            <!-- Indicador de Emoción del Avatar con soporte para transiciones -->
+            <Border HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
+                    Background="#1a152e" BorderBrush="#8b5cf6" BorderThickness="1" CornerRadius="8" Padding="12,5">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="AVATAR:" Foreground="#a78bfa" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock x:Name="LblEmotionEmoji" Text="😐" FontSize="20" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock x:Name="LblEmotionName" Text="Neutral" Foreground="White" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Border x:Name="BadgeTransition" Background="#7c3aed" CornerRadius="4" Padding="6,2" Margin="10,0,0,0" Visibility="Collapsed"
+                            ToolTip="Transición emocional detectada en este segmento de diálogo">
+                        <TextBlock x:Name="TxtTransitionBadge" Text="TRANSICIÓN" Foreground="White" FontSize="9" FontWeight="Bold"/>
+                    </Border>
+                </StackPanel>
+            </Border>
         </Grid>
 
         <!-- Cuerpo Principal -->

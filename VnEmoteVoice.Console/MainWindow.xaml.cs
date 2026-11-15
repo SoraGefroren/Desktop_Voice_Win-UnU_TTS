@@ -488,6 +488,16 @@ namespace VnEmoteVoice.Console
                 LblEmotionEmoji.Text = segment.Emoji;
                 LblEmotionName.Text = segment.Emotion;
 
+                if (segment.HasTransition)
+                {
+                    BadgeTransition.Visibility = Visibility.Visible;
+                    BadgeTransition.ToolTip = $"Transición ({segment.Transition.TransitionType}): {segment.Transition.FromEmotion} ({segment.Transition.FromEmoji}) ➔ {segment.Transition.ToEmotion} ({segment.Transition.ToEmoji})";
+                }
+                else
+                {
+                    BadgeTransition.Visibility = Visibility.Collapsed;
+                }
+
                 HighlightSegment(activeIndex);
 
                 string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"segment_{activeIndex}.wav");
@@ -733,6 +743,7 @@ namespace VnEmoteVoice.Console
                 BtnPause.Content = "⏸";
                 LblEmotionEmoji.Text = "😐";
                 LblEmotionName.Text = "Neutral";
+                BadgeTransition.Visibility = Visibility.Collapsed;
 
                 _isHighlighting = true;
                 try
@@ -840,6 +851,27 @@ namespace VnEmoteVoice.Console
                         text = seg.Text.Trim(),
                         emotion = seg.Emotion,
                         emoji = seg.Emoji,
+                        primary_emotion = seg.PrimaryEmotion,
+                        primary_emoji = seg.PrimaryEmoji,
+                        has_transition = seg.HasTransition,
+                        transition = seg.HasTransition ? new
+                        {
+                            from = seg.Transition.FromEmotion,
+                            from_emoji = seg.Transition.FromEmoji,
+                            to = seg.Transition.ToEmotion,
+                            to_emoji = seg.Transition.ToEmoji,
+                            transition_type = seg.Transition.TransitionType,
+                            description = seg.Transition.DescriptionWithEmoji
+                        } : null,
+                        sub_segments = seg.SubEmotions.Select(sub => new
+                        {
+                            part = sub.PartIndex,
+                            text = sub.Text,
+                            emotion = sub.Emotion,
+                            emoji = sub.Emoji,
+                            relative_start_index = sub.RelativeStartIndex,
+                            length = sub.Length
+                        }).ToList(),
                         startIndex = seg.StartIndex,
                         length = seg.Length
                     });
