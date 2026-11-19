@@ -17,7 +17,7 @@ namespace VnEmoteVoice.Core
         public string FromEmoji { get; set; } = string.Empty;
         public string ToEmotion { get; set; } = string.Empty;
         public string ToEmoji { get; set; } = string.Empty;
-        public string TransitionType { get; set; } = "Ninguna"; // "Contraste", "Giro Súbito", "Pausa Dramática", "Ruptura Emocional", "Progresión"
+        public string TransitionType { get; set; } = "Ninguna"; // "Contraste", "Giro Súbito", "Pausa Dramática", "Ruptura Emocional", "Giro Temporal"
         public string Description => HasTransition ? $"{FromEmotion} ➔ {ToEmotion}" : FromEmotion;
         public string DescriptionWithEmoji => HasTransition ? $"{FromEmoji} {FromEmotion} ➔ {ToEmoji} {ToEmotion}" : $"{FromEmoji} {FromEmotion}";
         public string CombinedEmoji => HasTransition ? $"{FromEmoji}➔{ToEmoji}" : FromEmoji;
@@ -31,6 +31,8 @@ namespace VnEmoteVoice.Core
         public int PartIndex { get; set; }
         public string Text { get; set; } = string.Empty;
         public string Emotion { get; set; } = "Neutral";
+        public string BaseEmotion { get; set; } = "Neutral";
+        public string Modifier { get; set; } = string.Empty;
         public string Emoji { get; set; } = "😐";
         public int RelativeStartIndex { get; set; }
         public int Length { get; set; }
@@ -47,7 +49,8 @@ namespace VnEmoteVoice.Core
         public int Length { get; set; }
         
         /// <summary>
-        /// Emoción representativa (si hay transición, muestra "EmocionA ➔ EmocionB" para compatibilidad).
+        /// Emoción representativa calificada con modificadores de puntuación (ej. "Alegría/Exaltada", "Tristeza/Preguntando"
+        /// o "Duda/Preguntando ➔ Furia/Gritando" si hay transición).
         /// </summary>
         public string Emotion { get; set; } = "Neutral";
         
@@ -56,8 +59,14 @@ namespace VnEmoteVoice.Core
         /// </summary>
         public string Emoji { get; set; } = "😐";
 
-        /// <summary>Emoción principal dominante del segmento.</summary>
+        /// <summary>Emoción principal dominante calificada con su matiz (ej. "Alegría/Gritando").</summary>
         public string PrimaryEmotion { get; set; } = "Neutral";
+
+        /// <summary>Emoción base sin matices ni modificadores de signos (ej. "Alegría").</summary>
+        public string BaseEmotion { get; set; } = "Neutral";
+
+        /// <summary>Modificador de entonación según signos ortográficos (ej. "Agitada", "Exaltada", "Gritando", "Preguntando", "Cuestionando").</summary>
+        public string Modifier { get; set; } = string.Empty;
 
         /// <summary>Emoji principal dominante.</summary>
         public string PrimaryEmoji { get; set; } = "😐";
@@ -77,7 +86,8 @@ namespace VnEmoteVoice.Core
 
     /// <summary>
     /// Motor avanzado de análisis emocional de texto en español para avatares y VTubers.
-    /// Abarca un espectro emocional profundo de 27 categorías y detección de transiciones intra-segmento.
+    /// Abarca un espectro emocional profundo de 27 categorías, modificadores por signos de puntuación (Emocion/Matiz)
+    /// y detección de transiciones intra-segmento.
     /// </summary>
     public static class EmotionAnalyzer
     {
@@ -268,6 +278,95 @@ namespace VnEmoteVoice.Core
                 1.3));
         }
 
+        // ─── MODIFICADORES DE ENTONACIÓN POR SIGNOS DE PUNTUACIÓN ─────────────────────
+
+        /// <summary>
+        /// Evalúa los signos ortográficos y tipográficos de la frase para complementar la emoción base,
+        /// generando matices como "Alegria/Agitada", "Alegria/Exaltada", "Alegria/Gritando",
+        /// "Tristeza/Preguntando", "Tristeza/Cuestionando", etc.
+        /// </summary>
+        public static (string QualifiedEmotion, string Modifier) DeterminePunctuationModifier(string baseEmotion, string text)
+        {
+            if (string.IsNullOrWhiteSpace(baseEmotion) || baseEmotion.Equals("Neutral", StringComparison.OrdinalIgnoreCase))
+                return (baseEmotion, string.Empty);
+
+            string trimmed = text.Trim();
+
+            // 1. Detección de combinaciones mixtas (? y ! en cualquier orden o simultáneos)
+            bool hasBothExclAndQuest = (trimmed.Contains("?") || trimmed.Contains("¿")) && (trimmed.Contains("!") || trimmed.Contains("¡"));
+
+            // 2. Múltiples exclamaciones (!! o ¡¡)
+            bool hasMultipleExcl = trimmed.Contains("!!") || trimmed.Contains("¡¡");
+
+            // 3. Exclamación simple (! o ¡)
+            bool hasSingleExcl = trimmed.Contains("!") || trimmed.Contains("¡");
+
+            // 4. Múltiples interrogaciones (?? o ¿¿)
+            bool hasMultipleQuest = trimmed.Contains("??") || trimmed.Contains("¿¿");
+
+            // 5. Interrogación simple (? o ¿)
+            bool hasSingleQuest = trimmed.Contains("?") || trimmed.Contains("¿");
+
+            // 6. Puntos suspensivos (... o …)
+            bool hasEllipsis = trimmed.Contains("...") || trimmed.Contains("…");
+
+            // 7. Todo mayúsculas (grito)
+            bool isAllUpper = trimmed.Length > 4 && trimmed.Where(char.IsLetter).All(char.IsUpper);
+
+            string modifier = string.Empty;
+
+            // Prioridad 1: Mixto (interrogación + exclamación) => "Agitada"
+            if (hasBothExclAndQuest)
+            {
+                modifier = "Agitada";
+            }
+            // Prioridad 2: Exclamación múltiple o mayúsculas sostenidas gritadas => "Gritando"
+            else if (hasMultipleExcl || (isAllUpper && hasSingleExcl))
+            {
+                modifier = "Gritando";
+            }
+            // Prioridad 3: Exclamación simple => "Exaltada"
+            else if (hasSingleExcl)
+            {
+                modifier = "Exaltada";
+            }
+            // Prioridad 4: Interrogación múltiple => "Cuestionando"
+            else if (hasMultipleQuest)
+            {
+                modifier = "Cuestionando";
+            }
+            // Prioridad 5: Interrogación simple => "Preguntando"
+            else if (hasSingleQuest)
+            {
+                modifier = "Preguntando";
+            }
+            // Prioridad 6: Puntos suspensivos => Matiz según la emoción base
+            else if (hasEllipsis)
+            {
+                modifier = baseEmotion switch
+                {
+                    "Tristeza" => "Quebrada",
+                    "Cansancio" => "Suspirando",
+                    "Duda" => "Vacilante",
+                    "Furia" => "Contenida",
+                    "Miedo" => "Tembloroso",
+                    "Intriga" => "Susurrante",
+                    "Alegría" or "Alegria" => "Contenida",
+                    _ => "Vacilante"
+                };
+            }
+            // Prioridad 7: Todo en mayúsculas sin signos => "Gritando"
+            else if (isAllUpper)
+            {
+                modifier = "Gritando";
+            }
+
+            if (string.IsNullOrEmpty(modifier))
+                return (baseEmotion, string.Empty);
+
+            return ($"{baseEmotion}/{modifier}", modifier);
+        }
+
         /// <summary>
         /// Divide el texto general en segmentos basados en puntuación terminal (. ! ? \n)
         /// y evalúa la emoción principal y las transiciones internas de cada segmento.
@@ -325,7 +424,8 @@ namespace VnEmoteVoice.Core
         }
 
         /// <summary>
-        /// Analiza un segmento individual en busca de su emoción dominante o de transiciones intra-segmento.
+        /// Analiza un segmento individual en busca de su emoción dominante o de transiciones intra-segmento,
+        /// aplicando los matices de signos de puntuación.
         /// </summary>
         public static TextSegment AnalyzeSingleSegment(string text, int startIndex = 0, int length = 0)
         {
@@ -345,21 +445,33 @@ namespace VnEmoteVoice.Core
             {
                 seg.HasTransition = true;
                 seg.Transition = transitionResult;
-                seg.PrimaryEmotion = transitionResult.ToEmotion;
+
+                // Obtener emoción base y modificador del polo de destino (final)
+                string toFull = transitionResult.ToEmotion;
+                string baseTo = toFull.Contains('/') ? toFull.Split('/')[0] : toFull;
+                string modTo = toFull.Contains('/') ? toFull.Split('/')[1] : string.Empty;
+
+                seg.PrimaryEmotion = toFull;
+                seg.BaseEmotion = baseTo;
+                seg.Modifier = modTo;
                 seg.PrimaryEmoji = transitionResult.ToEmoji;
-                seg.Emotion = transitionResult.Description; // ej: "Duda ➔ Furia"
+                seg.Emotion = transitionResult.Description; // ej: "Duda/Preguntando ➔ Furia/Gritando"
                 seg.Emoji = transitionResult.CombinedEmoji;  // ej: "🤨➔🤬"
                 seg.SubEmotions = transitionResult.SubEmotions;
                 seg.Confidence = 0.95;
             }
             else
             {
-                // Evaluar emoción dominante global del segmento
-                var (emotion, emoji, score) = EvaluateEmotion(text);
+                // Evaluar emoción dominante global del segmento con modificador por signos
+                var (baseEmotion, emoji, score) = EvaluateEmotion(text);
+                var (qualifiedEmotion, modifier) = DeterminePunctuationModifier(baseEmotion, text);
+
                 seg.HasTransition = false;
-                seg.PrimaryEmotion = emotion;
+                seg.BaseEmotion = baseEmotion;
+                seg.Modifier = modifier;
+                seg.PrimaryEmotion = qualifiedEmotion;
                 seg.PrimaryEmoji = emoji;
-                seg.Emotion = emotion;
+                seg.Emotion = qualifiedEmotion; // ej: "Alegria/Exaltada", "Tristeza/Preguntando"
                 seg.Emoji = emoji;
                 seg.Confidence = Math.Min(1.0, score > 0 ? 0.7 + (score * 0.1) : 0.5);
 
@@ -367,7 +479,9 @@ namespace VnEmoteVoice.Core
                 {
                     PartIndex = 1,
                     Text = text,
-                    Emotion = emotion,
+                    Emotion = qualifiedEmotion,
+                    BaseEmotion = baseEmotion,
+                    Modifier = modifier,
                     Emoji = emoji,
                     RelativeStartIndex = 0,
                     Length = text.Length,
@@ -436,27 +550,28 @@ namespace VnEmoteVoice.Core
                         var eval1 = EvaluateEmotion(part1);
                         var eval2 = EvaluateEmotion(part2);
 
-                        // Se confirma transición si las emociones son diferentes y al menos una no es Neutral
-                        // (o si ambas tienen emoción identificada y difieren entre sí)
-                        if (!string.Equals(eval1.Emotion, eval2.Emotion, StringComparison.OrdinalIgnoreCase))
+                        // Si la primera es una pregunta reflexiva pero no tenía palabras clave fuertes
+                        if (eval1.Emotion == "Neutral" && (part1.Contains("?") || part1.Contains("¿")) && eval2.Emotion != "Neutral")
                         {
-                            // Si una es Neutral pero la otra es muy fuerte, verificar si la parte Neutral tiene rasgos implícitos
+                            eval1 = ("Duda", "🤨", 1.0);
+                        }
+
+                        // Calificar ambas partes con los modificadores de puntuación según sus signos respectivos
+                        var (qual1, mod1) = DeterminePunctuationModifier(eval1.Emotion, part1);
+                        var (qual2, mod2) = DeterminePunctuationModifier(eval2.Emotion, part2);
+
+                        // Se confirma transición si las emociones base o calificadas difieren y al menos una no es Neutral
+                        if (!string.Equals(qual1, qual2, StringComparison.OrdinalIgnoreCase))
+                        {
                             bool validTransition = (eval1.Emotion != "Neutral" && eval2.Emotion != "Neutral") ||
                                                   (eval1.Score >= 1.0 && eval2.Score >= 1.0);
-
-                            // O si la primera es una pregunta/duda y la segunda una certeza/furia
-                            if (!validTransition && (part1.Contains("?") || part1.Contains("¿")) && eval2.Emotion != "Neutral")
-                            {
-                                if (eval1.Emotion == "Neutral") eval1 = ("Duda", "🤨", 1.0);
-                                validTransition = true;
-                            }
 
                             if (validTransition)
                             {
                                 result.HasTransition = true;
-                                result.FromEmotion = eval1.Emotion;
+                                result.FromEmotion = qual1;
                                 result.FromEmoji = eval1.Emoji;
-                                result.ToEmotion = eval2.Emotion;
+                                result.ToEmotion = qual2;
                                 result.ToEmoji = eval2.Emoji;
                                 result.TransitionType = pivot.Type;
 
@@ -464,7 +579,9 @@ namespace VnEmoteVoice.Core
                                 {
                                     PartIndex = 1,
                                     Text = part1,
-                                    Emotion = eval1.Emotion,
+                                    Emotion = qual1,
+                                    BaseEmotion = eval1.Emotion,
+                                    Modifier = mod1,
                                     Emoji = eval1.Emoji,
                                     RelativeStartIndex = 0,
                                     Length = part1.Length,
@@ -475,7 +592,9 @@ namespace VnEmoteVoice.Core
                                 {
                                     PartIndex = 2,
                                     Text = part2,
-                                    Emotion = eval2.Emotion,
+                                    Emotion = qual2,
+                                    BaseEmotion = eval2.Emotion,
+                                    Modifier = mod2,
                                     Emoji = eval2.Emoji,
                                     RelativeStartIndex = splitIndex + splitLength,
                                     Length = part2.Length,
@@ -492,10 +611,10 @@ namespace VnEmoteVoice.Core
             return result;
         }
 
-        // ─── EVALUACIÓN LÉXICA Y PONDERADA DE EMOCIONES ──────────────────────────────
+        // ─── EVALUACIÓN LÉXICA Y PONDERADA DE EMOCIONES BASE ──────────────────────────
 
         /// <summary>
-        /// Evalúa un texto y retorna la emoción con mayor puntuación acumulada.
+        /// Evalúa un texto y retorna la emoción base con mayor puntuación acumulada.
         /// </summary>
         public static (string Emotion, string Emoji, double Score) EvaluateEmotion(string text)
         {
@@ -505,7 +624,7 @@ namespace VnEmoteVoice.Core
             string normalized = Normalize(text);
             var scores = new Dictionary<EmotionRule, double>();
 
-            // Detectar modificadores de estilo y puntuación
+            // Detectar modificadores de estilo y puntuación para el puntaje léxico
             bool hasMultipleExclamations = text.Contains("!!") || text.Contains("¡¡");
             bool hasMultipleQuestions = text.Contains("??") || text.Contains("¿¿");
             bool hasEllipsis = text.Contains("...") || text.Contains("…");

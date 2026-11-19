@@ -52,8 +52,9 @@ namespace VnEmoteVoice.Console
 
         /// <summary>
         /// Agrega texto a un párrafo respetando fielmente todos los saltos de línea (\r\n o \n) mediante elementos LineBreak.
+        /// Permite especificar fondo, color y grosor de fuente para resaltar segmentos activos.
         /// </summary>
-        private static void AppendTextWithLineBreaks(Paragraph p, string text, Brush? background, Brush foreground, object? tag)
+        private static void AppendTextWithLineBreaks(Paragraph p, string text, Brush? background, Brush foreground, object? tag, FontWeight? fontWeight = null)
         {
             if (string.IsNullOrEmpty(text)) return;
 
@@ -64,7 +65,8 @@ namespace VnEmoteVoice.Console
                 {
                     Run run = new Run(lines[j])
                     {
-                        Foreground = foreground
+                        Foreground = foreground,
+                        FontWeight = fontWeight ?? FontWeights.Normal
                     };
                     if (background != null) run.Background = background;
                     if (tag != null) run.Tag = tag;
@@ -506,12 +508,17 @@ namespace VnEmoteVoice.Console
                 if (!_isPlaying) break;
                 if (_jumpRequested) continue;
 
+                // Asegurar que el texto resaltado esté visible justo antes de comenzar a reproducir
+                ScrollActiveSegmentIntoView(activeIndex);
+
                 _voiceManager.PlayAudio(tempPath, volume);
 
-                await Task.Delay(300);
+                await Task.Delay(250);
                 while (_voiceManager.IsPlaying && !_isPaused && _isPlaying && !_jumpRequested)
                 {
-                    await Task.Delay(100);
+                    // Mantener el texto resaltado visible de forma continua durante la reproducción
+                    ScrollActiveSegmentIntoView(activeIndex);
+                    await Task.Delay(150);
                 }
 
                 if (!_isPlaying) break;
@@ -548,9 +555,10 @@ namespace VnEmoteVoice.Console
                 int cursor = 0;
                 int textLength = _fullPlainText.Length;
 
-                Brush normalForeground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
+                Brush normalForeground = new SolidColorBrush(Color.FromArgb(220, 240, 246, 252));
                 Brush activeForeground = Brushes.White;
-                Brush activeBackground = new SolidColorBrush(Color.FromArgb(90, 124, 58, 237));
+                // Púrpura vibrante #7c3aed para que el texto resaltado se distinga claramente en todo momento
+                Brush activeBackground = new SolidColorBrush(Color.FromRgb(124, 58, 237));
 
                 for (int i = 0; i < _segments.Count; i++)
                 {
@@ -567,8 +575,9 @@ namespace VnEmoteVoice.Console
                     bool isActive = (i == activeIndex);
                     Brush? bg = isActive ? activeBackground : null;
                     Brush fg = isActive ? activeForeground : normalForeground;
+                    FontWeight fw = isActive ? FontWeights.Bold : FontWeights.Normal;
 
-                    AppendTextWithLineBreaks(p, seg.Text, bg, fg, i);
+                    AppendTextWithLineBreaks(p, seg.Text, bg, fg, i, fw);
                     cursor = Math.Max(cursor, seg.StartIndex + seg.Length);
                 }
 
@@ -580,18 +589,69 @@ namespace VnEmoteVoice.Console
 
                 RtbInput.Document.Blocks.Add(p);
 
-                // Asegurar que el segmento activo se desplace a la vista visible en textos largos
-                try
-                {
-                    Run? activeRun = p.Inlines.OfType<Run>().FirstOrDefault(r => r.Tag is int idx && idx == activeIndex);
-                    activeRun?.BringIntoView();
-                }
-                catch { }
+                // Desplazar automáticamente el scroll hacia el segmento activo
+                ScrollActiveSegmentIntoView(activeIndex);
             }
             finally
             {
                 _isHighlighting = false;
             }
+        }
+
+        /// <summary>
+        /// Asegura que el segmento resaltado activo quede completamente visible en el RichTextBox,
+        /// moviendo el scroll automáticamente si el texto se encuentra fuera del viewport.
+        /// </summary>
+        private void ScrollActiveSegmentIntoView(int activeIndex)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    var p = RtbInput.Document.Blocks.OfType<Paragraph>().FirstOrDefault();
+                    if (p == null) return;
+
+                    var activeRun = p.Inlines.OfType<Run>().FirstOrDefault(r => r.Tag is int idx && idx == activeIndex);
+                    if (activeRun == null) return;
+
+                    // 1. BringIntoView directo en el elemento del FlowDocument
+                    activeRun.BringIntoView();
+
+                    // 2. Control preciso y garantizado con el ScrollViewer interno del RichTextBox
+                    var sv = FindVisualChild<ScrollViewer>(RtbInput);
+                    if (sv != null)
+                    {
+                        Rect rect = activeRun.ContentStart.GetCharacterRect(LogicalDirection.Forward);
+
+                        // Si la posición superior o inferior del texto resaltado está fuera del viewport
+                        if (rect.Top < 15 || rect.Bottom > (sv.ViewportHeight - 25))
+                        {
+                            // Centrar el texto activo en el tercio superior de la vista
+                            double targetOffset = sv.VerticalOffset + rect.Top - (sv.ViewportHeight / 3.0);
+                            targetOffset = Math.Clamp(targetOffset, 0, sv.ScrollableHeight);
+                            sv.ScrollToVerticalOffset(targetOffset);
+                        }
+                    }
+                }
+                catch { }
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+            int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                    return typedChild;
+
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                    return childOfChild;
+            }
+            return null;
         }
 
         private static bool IsClickOnScrollBar(object? source)
@@ -853,6 +913,8 @@ namespace VnEmoteVoice.Console
                         emoji = seg.Emoji,
                         primary_emotion = seg.PrimaryEmotion,
                         primary_emoji = seg.PrimaryEmoji,
+                        base_emotion = seg.BaseEmotion,
+                        modifier = seg.Modifier,
                         has_transition = seg.HasTransition,
                         transition = seg.HasTransition ? new
                         {
@@ -868,6 +930,8 @@ namespace VnEmoteVoice.Console
                             part = sub.PartIndex,
                             text = sub.Text,
                             emotion = sub.Emotion,
+                            base_emotion = sub.BaseEmotion,
+                            modifier = sub.Modifier,
                             emoji = sub.Emoji,
                             relative_start_index = sub.RelativeStartIndex,
                             length = sub.Length
