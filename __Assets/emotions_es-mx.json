@@ -1,8 +1,8 @@
 {
-  "language": "es",
-  "language_name": "Español",
+  "language": "es-MX",
+  "language_name": "Español (México)",
   "version": "1.0",
-  "description": "Diccionario extendido de emociones en español para VnEmoteVoice con análisis contextual, modificadores de puntuación y transiciones de avatar.",
+  "description": "Diccionario extendido de emociones en español mexicano para VnEmoteVoice con análisis contextual, modificadores de puntuación y transiciones de avatar.",
   "punctuation_modifiers": {
     "mixed_excl_quest": "Agitada",
     "multiple_excl": "Gritando",

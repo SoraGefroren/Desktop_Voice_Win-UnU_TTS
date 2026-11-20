@@ -17,7 +17,7 @@
   <ItemGroup>
     <Resource Include="..\__Assets\icon.ico" Link="__Assets\icon.ico" />
     <Resource Include="..\__Assets\icon.png" Link="__Assets\icon.png" />
-    <Content Include="..\__Assets\emotions_es.json" Link="__Assets\emotions_es.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\__Assets\emotions_es-mx.json" Link="__Assets\emotions_es-mx.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

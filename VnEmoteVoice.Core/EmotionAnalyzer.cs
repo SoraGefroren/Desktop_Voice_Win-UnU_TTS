@@ -387,17 +387,17 @@ namespace VnEmoteVoice.Core
         }
 
         /// <summary>
-        /// Carga el modelo por defecto en español desde el archivo assets o fallback integrado.
+        /// Carga el modelo por defecto en español mexicano desde el archivo assets o fallback integrado.
         /// </summary>
         public static void LoadDefaultSpanishModel()
         {
-            // Intentar cargar desde __Assets/emotions_es.json
+            // Intentar cargar desde __Assets/emotions_es-mx.json
             string[] possiblePaths = new[]
             {
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "__Assets", "emotions_es.json"),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "__Assets", "emotions_es.json"),
-                Path.Combine(Directory.GetCurrentDirectory(), "__Assets", "emotions_es.json"),
-                Path.Combine(Directory.GetCurrentDirectory(), "emotions_es.json")
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "__Assets", "emotions_es-mx.json"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "__Assets", "emotions_es-mx.json"),
+                Path.Combine(Directory.GetCurrentDirectory(), "__Assets", "emotions_es-mx.json"),
+                Path.Combine(Directory.GetCurrentDirectory(), "emotions_es-mx.json")
             };
 
             foreach (var path in possiblePaths)
@@ -425,10 +425,10 @@ namespace VnEmoteVoice.Core
         {
             return new EmotionModelConfig
             {
-                Language = "es",
-                LanguageName = "Español",
+                Language = "es-MX",
+                LanguageName = "Español (México)",
                 Version = "1.0",
-                Description = "Modelo base en español integrado.",
+                Description = "Modelo base en español mexicano integrado.",
                 PunctuationModifiers = new PunctuationModifiersConfig
                 {
                     MixedExclQuest = "Agitada",

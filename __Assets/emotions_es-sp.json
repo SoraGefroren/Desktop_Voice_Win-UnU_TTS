@@ -1,0 +1,912 @@
+{
+  "language": "es",
+  "language_name": "Español",
+  "version": "1.0",
+  "description": "Diccionario extendido de emociones en español para VnEmoteVoice con análisis contextual, modificadores de puntuación y transiciones de avatar.",
+  "punctuation_modifiers": {
+    "mixed_excl_quest": "Agitada",
+    "multiple_excl": "Gritando",
+    "single_excl": "Exaltada",
+    "multiple_quest": "Cuestionando",
+    "single_quest": "Preguntando",
+    "all_uppercase": "Gritando",
+    "ellipsis_mapping": {
+      "Tristeza": "Quebrada",
+      "Cansancio": "Suspirando",
+      "Duda": "Vacilante",
+      "Furia": "Contenida",
+      "Miedo": "Tembloroso",
+      "Intriga": "Susurrante",
+      "Alegría": "Contenida",
+      "Alegria": "Contenida",
+      "Vergüenza": "Apenada",
+      "Verguenza": "Apenada",
+      "Decepción": "Amarga",
+      "Decepcion": "Amarga",
+      "default": "Vacilante"
+    }
+  },
+  "transition_pivot_patterns": [
+    {
+      "pattern": "\\b(sin\\s+embargo|no\\s+obstante|por\\s+el\\s+contrario|en\\s+cambio|a\\s+pesar\\s+de\\s+(?:todo|eso))\\b",
+      "type": "Contraste"
+    },
+    {
+      "pattern": "(?:,\\s*|\\.\\.\\.\\s*|\\s+)\\b(pero|aunque|mas)\\b(?:\\s+ahora)?",
+      "type": "Contraste"
+    },
+    {
+      "pattern": "\\b(de\\s+repente|de\\s+pronto|subitamente|inesperadamente)\\b",
+      "type": "Giro Súbito"
+    },
+    {
+      "pattern": "\\b(pero\\s+ahora|y\\s+ahora|al\\s+final|finalmente|de\\s+golpe)\\b",
+      "type": "Giro Temporal"
+    },
+    {
+      "pattern": "(?:\\.{3,}|…|——|--|;)\\s*",
+      "type": "Pausa Dramática"
+    },
+    {
+      "pattern": "\\?\\s*(?:¡|!)",
+      "type": "Ruptura Emocional"
+    }
+  ],
+  "negation_rules": [
+    {
+      "trigger_phrases": [
+        "no tengo miedo",
+        "sin miedo",
+        "no temo",
+        "sin temor",
+        "cero miedo"
+      ],
+      "remove_emotion": "Miedo",
+      "add_emotion": "Confianza",
+      "bonus_score": 3.0
+    },
+    {
+      "trigger_phrases": [
+        "no estoy seguro",
+        "no se si",
+        "no estoy convencido",
+        "no creo que",
+        "tengo mis dudas"
+      ],
+      "add_emotion": "Duda",
+      "bonus_score": 3.0
+    },
+    {
+      "trigger_phrases": [
+        "no puedo mas",
+        "no doy mas",
+        "me rindo",
+        "ya no aguanto",
+        "estoy exhausto"
+      ],
+      "add_emotion": "Cansancio",
+      "bonus_score": 3.5
+    }
+  ],
+  "emotions": [
+    {
+      "name": "Furia",
+      "emoji": "🤬",
+      "group": "Ira",
+      "weight": 1.4,
+      "phrases": [
+        "te matare",
+        "te voy a destruir",
+        "te odio",
+        "maldito infeliz",
+        "estupido idiota",
+        "maldita sea",
+        "hijos de perra",
+        "los destruire",
+        "callate de una vez",
+        "muere de una vez",
+        "te hare pedazos",
+        "no te atrevas",
+        "me las pagaras",
+        "pagaras por esto",
+        "eres una escoria"
+      ],
+      "stems": [
+        "furia",
+        "furios",
+        "rabia",
+        "rabios",
+        "ira",
+        "iracund",
+        "coler",
+        "coleric",
+        "maldit",
+        "estupid",
+        "odio",
+        "odiar",
+        "desgraciad",
+        "reviento",
+        "revienta",
+        "exploto",
+        "infeliz",
+        "pudran",
+        "asqueros",
+        "bastard",
+        "cabron",
+        "despreciabl"
+      ]
+    },
+    {
+      "name": "Intriga",
+      "emoji": "🕵️",
+      "group": "Misterio",
+      "weight": 1.1,
+      "phrases": [
+        "que extrano",
+        "algo no encaja",
+        "no me cuadra",
+        "que oculta",
+        "quien sera",
+        "que trama",
+        "tengo mis sospechas",
+        "algo huele mal",
+        "no tiene sentido",
+        "me pregunto que paso",
+        "que secreto guardas",
+        "algo se oculta aqui",
+        "que misterio"
+      ],
+      "stems": [
+        "intriga",
+        "misteri",
+        "enigmat",
+        "curios",
+        "sospech",
+        "secret",
+        "ocult",
+        "acertij",
+        "sombras",
+        "susurr",
+        "conspiracion",
+        "pistas",
+        "indicio",
+        "investig",
+        "acertijo"
+      ]
+    },
+    {
+      "name": "Miedo",
+      "emoji": "😨",
+      "group": "Temor",
+      "weight": 1.2,
+      "phrases": [
+        "tengo miedo",
+        "me da miedo",
+        "no te acerques",
+        "tiemblo de miedo",
+        "que miedo",
+        "estoy asustado",
+        "me asusta",
+        "siento escalofrios",
+        "no quiero morir",
+        "que fue ese ruido"
+      ],
+      "stems": [
+        "miedo",
+        "temor",
+        "temer",
+        "asustad",
+        "susto",
+        "tiemblo",
+        "temblor",
+        "amenaza",
+        "escalofrio",
+        "pavor",
+        "temeros",
+        "insegur",
+        "intimid"
+      ]
+    },
+    {
+      "name": "Terror",
+      "emoji": "😱",
+      "group": "Temor Extremo",
+      "weight": 1.4,
+      "phrases": [
+        "sangre fria",
+        "pesadilla viviente",
+        "es una abominacion",
+        "monstruo aterrador",
+        "horror inimaginable",
+        "no tiene rostro",
+        "nos va a devorar",
+        "espanto absoluto"
+      ],
+      "stems": [
+        "terror",
+        "espant",
+        "espantos",
+        "atroz",
+        "pesadilla",
+        "monstruo",
+        "abominacion",
+        "siniestr",
+        "macabr",
+        "horror",
+        "horrorizad",
+        "petrificad",
+        "demoni",
+        "aterrador",
+        "cadaver"
+      ]
+    },
+    {
+      "name": "Panico",
+      "emoji": "🚨",
+      "group": "Crisis",
+      "weight": 1.3,
+      "phrases": [
+        "no hay salida",
+        "salvese quien pueda",
+        "estamos perdidos",
+        "no respiro",
+        "me ahogo",
+        "no puedo salir",
+        "alguien ayudeme",
+        "por favor paren",
+        "vamos a morir todos"
+      ],
+      "stems": [
+        "panico",
+        "corran",
+        "escapen",
+        "auxili",
+        "socorr",
+        "ayuda",
+        "histeri",
+        "atrapad",
+        "desesperad",
+        "desesperacion",
+        "angustia",
+        "asfixi",
+        "urgenci"
+      ]
+    },
+    {
+      "name": "Burla",
+      "emoji": "😏",
+      "group": "Sarcasmo",
+      "weight": 1.2,
+      "phrases": [
+        "que patetico",
+        "mirate nada mas",
+        "como si pudieras",
+        "que risa me das",
+        "uy si claro",
+        "pobrecito de ti",
+        "no me hagas reir",
+        "que chiste tan malo",
+        "tan ingenuo como siempre",
+        "en serio creiste que podias",
+        "das lastima"
+      ],
+      "stems": [
+        "burla",
+        "burlar",
+        "mofa",
+        "jaja",
+        "jajaja",
+        "jeje",
+        "patetic",
+        "ridicul",
+        "payas",
+        "perdedor",
+        "pobrecit",
+        "inutil",
+        "ilus",
+        "ingenu",
+        "chiste",
+        "payaso"
+      ]
+    },
+    {
+      "name": "Lujuria",
+      "emoji": "💋",
+      "group": "Seduccion",
+      "weight": 1.3,
+      "phrases": [
+        "ven aqui",
+        "acercate mas",
+        "tus labios",
+        "besame ahora",
+        "tan ardiente",
+        "no te resistas",
+        "delicioso placer",
+        "piel con piel",
+        "deseo tu cuerpo",
+        "hazme tuyo",
+        "hazme tuya",
+        "provocas en mi",
+        "eres irresistible"
+      ],
+      "stems": [
+        "lujuri",
+        "seducc",
+        "sensual",
+        "ardiente",
+        "besame",
+        "besos",
+        "labios",
+        "caricia",
+        "deseo",
+        "tentacion",
+        "excit",
+        "provocativ",
+        "sexy",
+        "pasion",
+        "erot"
+      ]
+    },
+    {
+      "name": "Ego",
+      "emoji": "🦚",
+      "group": "Orgullo",
+      "weight": 1.2,
+      "phrases": [
+        "mi grandeza",
+        "soy el mejor",
+        "nadie como yo",
+        "mi nombre sera recordado",
+        "soy unico",
+        "mi intelecto superior",
+        "admiren mi poder",
+        "arrodillense ante mi",
+        "mi legado inmortal",
+        "soy un ser perfecto"
+      ],
+      "stems": [
+        "ego",
+        "narcis",
+        "suprem",
+        "perfecto",
+        "perfecta",
+        "inigualable",
+        "adoren",
+        "arrodillen",
+        "inmortal",
+        "magnific",
+        "vanidad",
+        "gloria",
+        "dios",
+        "reina",
+        "rey"
+      ]
+    },
+    {
+      "name": "SobreConfianza",
+      "emoji": "😎",
+      "group": "Orgullo",
+      "weight": 1.2,
+      "phrases": [
+        "pan comido",
+        "demasiado facil",
+        "nadie puede conmigo",
+        "ni me despeine",
+        "no tienen oportunidad",
+        "juego de ninos",
+        "no me duraron ni un segundo",
+        "me sobra talento",
+        "esta regalado",
+        "esto sera un paseo"
+      ],
+      "stems": [
+        "sobreconfianz",
+        "facilisim",
+        "invencibl",
+        "imparabl",
+        "invict",
+        "sobradisim",
+        "regalado",
+        "impecabl",
+        "arras",
+        "arroll"
+      ]
+    },
+    {
+      "name": "Soberbia",
+      "emoji": "💅",
+      "group": "Desden",
+      "weight": 1.2,
+      "phrases": [
+        "no estas a mi nivel",
+        "como te atreves",
+        "insecto insignificante",
+        "no pierdas mi tiempo",
+        "no me rebajare a tu nivel",
+        "criatura miserable",
+        "gusano repugnante",
+        "aparta de mi vista",
+        "ignorante insolente"
+      ],
+      "stems": [
+        "soberbi",
+        "arroganc",
+        "altiv",
+        "desden",
+        "despreci",
+        "inferior",
+        "insolent",
+        "insignificant",
+        "plebey",
+        "miserabl",
+        "arrogant"
+      ]
+    },
+    {
+      "name": "Confianza",
+      "emoji": "🛡️",
+      "group": "Seguridad",
+      "weight": 1.1,
+      "phrases": [
+        "estoy seguro",
+        "todo saldra bien",
+        "puedo lograrlo",
+        "cuenta conmigo",
+        "tengo fe",
+        "se que podemos",
+        "lo lograremos juntos",
+        "no hay duda de que triunfaremos"
+      ],
+      "stems": [
+        "confianz",
+        "confiar",
+        "segur",
+        "certez",
+        "firm",
+        "capaz",
+        "decidid",
+        "valentia",
+        "valient",
+        "fortalez",
+        "optimism"
+      ]
+    },
+    {
+      "name": "Armonia",
+      "emoji": "🕊️",
+      "group": "Serenidad",
+      "weight": 1.0,
+      "phrases": [
+        "paz interior",
+        "todo esta en calma",
+        "brisa suave",
+        "tranquilidad absoluta",
+        "en perfecta calma",
+        "respira profundo",
+        "siente la paz",
+        "momento de serenidad"
+      ],
+      "stems": [
+        "armoni",
+        "seren",
+        "paz",
+        "calm",
+        "tranquil",
+        "soseg",
+        "placid",
+        "equilibri",
+        "quietud",
+        "apacibl",
+        "relajad"
+      ]
+    },
+    {
+      "name": "Exigencia",
+      "emoji": "⚖️",
+      "group": "Autoridad",
+      "weight": 1.2,
+      "phrases": [
+        "ahora mismo",
+        "hazlo ya",
+        "no acepto excusas",
+        "exijo una explicacion",
+        "obedece mis ordenes",
+        "te lo ordeno",
+        "ni una palabra mas",
+        "haz lo que digo"
+      ],
+      "stems": [
+        "exig",
+        "orden",
+        "mando",
+        "disciplin",
+        "obligaci",
+        "estrict",
+        "rigor",
+        "demanda",
+        "obedece",
+        "inmediatament"
+      ]
+    },
+    {
+      "name": "Duda",
+      "emoji": "🤨",
+      "group": "Incertidumbre",
+      "weight": 1.0,
+      "phrases": [
+        "no lo se",
+        "tal vez",
+        "sera verdad",
+        "no estoy tan seguro",
+        "sera posible",
+        "y si nos equivocamos",
+        "me cuesta creerlo",
+        "que deberia hacer"
+      ],
+      "stems": [
+        "duda",
+        "dudar",
+        "dudos",
+        "insegur",
+        "quiza",
+        "talvez",
+        "inciert",
+        "vacil",
+        "confus",
+        "perplej",
+        "titube",
+        "posibl"
+      ]
+    },
+    {
+      "name": "Cansancio",
+      "emoji": "🥱",
+      "group": "Fatiga",
+      "weight": 1.1,
+      "phrases": [
+        "estoy agotado",
+        "no doy mas",
+        "me duelen los ojos",
+        "necesito dormir",
+        "sin energias",
+        "fue un dia muy largo",
+        "ya no tengo fuerzas",
+        "me rindo por hoy"
+      ],
+      "stems": [
+        "cansad",
+        "cansanci",
+        "agotad",
+        "fatig",
+        "exhaust",
+        "dormir",
+        "sueno",
+        "pesadez",
+        "rendid",
+        "tedi",
+        "desgast"
+      ]
+    },
+    {
+      "name": "Plenitud",
+      "emoji": "✨",
+      "group": "Satisfaccion",
+      "weight": 1.1,
+      "phrases": [
+        "no pido nada mas",
+        "todo es perfecto",
+        "me siento completo",
+        "corazon lleno",
+        "felicidad absoluta",
+        "momento inolvidable",
+        "plenitud total"
+      ],
+      "stems": [
+        "plenitud",
+        "plen",
+        "complet",
+        "realizad",
+        "dichos",
+        "satisfac",
+        "prosper",
+        "glorios",
+        "bendecid",
+        "iluminad"
+      ]
+    },
+    {
+      "name": "Irritacion",
+      "emoji": "😤",
+      "group": "Molestia",
+      "weight": 1.1,
+      "phrases": [
+        "ya basta",
+        "deja de molestar",
+        "me tienes harto",
+        "que fastidio",
+        "no me molestes",
+        "otra vez con lo mismo",
+        "que pesado eres",
+        "me colmaste la paciencia"
+      ],
+      "stems": [
+        "irrit",
+        "fastidi",
+        "hart",
+        "molesti",
+        "molest",
+        "incomod",
+        "colmad",
+        "enojo",
+        "pesadez",
+        "enfad"
+      ]
+    },
+    {
+      "name": "Tristeza",
+      "emoji": "😢",
+      "group": "Melancolia",
+      "weight": 1.3,
+      "phrases": [
+        "tengo ganas de llorar",
+        "me duele el alma",
+        "por que a mi",
+        "todo se termino",
+        "estoy completamente solo",
+        "lloro por ti",
+        "me partio el corazon"
+      ],
+      "stems": [
+        "trist",
+        "llor",
+        "lagrim",
+        "deprim",
+        "soledad",
+        "duelo",
+        "melancol",
+        "pena",
+        "aflig",
+        "vaci",
+        "desgarr",
+        "desolad"
+      ]
+    },
+    {
+      "name": "Alegria",
+      "emoji": "😄",
+      "group": "Felicidad",
+      "weight": 1.2,
+      "phrases": [
+        "que gran noticia",
+        "estoy tan feliz",
+        "es maravilloso",
+        "que alegria",
+        "el mejor dia de mi vida",
+        "sonrie conmigo",
+        "vamos a festejar"
+      ],
+      "stems": [
+        "alegr",
+        "feliz",
+        "content",
+        "sonris",
+        "celebr",
+        "fiesta",
+        "genial",
+        "fabulos",
+        "entusiasm",
+        "emocionad",
+        "risas"
+      ]
+    },
+    {
+      "name": "Sorpresa",
+      "emoji": "😲",
+      "group": "Asombro",
+      "weight": 1.1,
+      "phrases": [
+        "no me lo esperaba",
+        "increible pero cierto",
+        "que sorpresa",
+        "dios mio",
+        "no puede ser verdad",
+        "impresionante giro",
+        "jamas imagine esto"
+      ],
+      "stems": [
+        "sorpres",
+        "asombr",
+        "increibl",
+        "impactad",
+        "anonad",
+        "incredul",
+        "fascinad",
+        "alucin",
+        "inesperad",
+        "estupefact"
+      ]
+    },
+    {
+      "name": "Decepcion",
+      "emoji": "😞",
+      "group": "Desilusion",
+      "weight": 1.2,
+      "phrases": [
+        "esperaba mas de ti",
+        "me fallaste",
+        "que decepcion tan grande",
+        "fue una ilusion",
+        "rompiste mi confianza",
+        "todo fue en vano",
+        "no valio la pena"
+      ],
+      "stems": [
+        "decepcion",
+        "desilusi",
+        "defraud",
+        "desencant",
+        "amarg",
+        "frustrad",
+        "traicion",
+        "desesperanz",
+        "derrotad"
+      ]
+    },
+    {
+      "name": "Esperanza",
+      "emoji": "🌟",
+      "group": "Ilusion",
+      "weight": 1.1,
+      "phrases": [
+        "manana sera mejor",
+        "no pierdo la esperanza",
+        "llegara nuestro momento",
+        "una luz en la oscuridad",
+        "aun hay tiempo",
+        "un nuevo amanecer",
+        "todo mejorara"
+      ],
+      "stems": [
+        "esperanz",
+        "ilusi",
+        "sueno",
+        "luz",
+        "renacer",
+        "promes",
+        "anhel",
+        "futur",
+        "resurg",
+        "fe"
+      ]
+    },
+    {
+      "name": "Ternura",
+      "emoji": "🥺",
+      "group": "Afecto",
+      "weight": 1.1,
+      "phrases": [
+        "tan lindo",
+        "eres adorable",
+        "mi pequeno tesoro",
+        "que tierno eres",
+        "quiero abrazarte",
+        "me derrito de amor",
+        "puro carino"
+      ],
+      "stems": [
+        "tiern",
+        "lind",
+        "adorable",
+        "abraz",
+        "carin",
+        "afect",
+        "dulzur",
+        "bebe",
+        "angel",
+        "mimos"
+      ]
+    },
+    {
+      "name": "Envidia",
+      "emoji": "🐍",
+      "group": "Resentimiento",
+      "weight": 1.2,
+      "phrases": [
+        "por que el y yo no",
+        "no se lo merece",
+        "siempre le dan todo",
+        "ojala le vaya mal",
+        "tanta suerte no es normal",
+        "yo debi tener eso"
+      ],
+      "stems": [
+        "envidi",
+        "celos",
+        "resentid",
+        "rencor",
+        "despech",
+        "codici",
+        "amargad",
+        "injust",
+        "egoist"
+      ]
+    },
+    {
+      "name": "Verguenza",
+      "emoji": "😳",
+      "group": "Bochorno",
+      "weight": 1.1,
+      "phrases": [
+        "que verguenza",
+        "tragarme la tierra",
+        "me puse rojo",
+        "que bochorno",
+        "no debi decir eso",
+        "que pena con todos",
+        "desearia desaparecer"
+      ],
+      "stems": [
+        "verguenz",
+        "bochorn",
+        "apenad",
+        "rubor",
+        "humillad",
+        "timid",
+        "turbad",
+        "sonroj",
+        "pena"
+      ]
+    },
+    {
+      "name": "Culpa",
+      "emoji": "🙇",
+      "group": "Remordimiento",
+      "weight": 1.2,
+      "phrases": [
+        "todo fue mi culpa",
+        "perdoname por favor",
+        "no debi hacerlo",
+        "me arrepiento tanto",
+        "cargue con este peso",
+        "lo lamento en el alma"
+      ],
+      "stems": [
+        "culpa",
+        "culpabl",
+        "arrepent",
+        "remordimient",
+        "perdon",
+        "disculp",
+        "pesar",
+        "cargo",
+        "responsabl",
+        "lament"
+      ]
+    },
+    {
+      "name": "Gratitud",
+      "emoji": "🙏",
+      "group": "Agradecimiento",
+      "weight": 1.1,
+      "phrases": [
+        "muchas gracias",
+        "te agradezco de corazon",
+        "eternamente agradecido",
+        "no se como pagarte",
+        "gracias por estar ahi",
+        "mi eterna gratitud"
+      ],
+      "stems": [
+        "graci",
+        "agradec",
+        "gratitud",
+        "reconoc",
+        "aprec",
+        "bendici",
+        "bondad",
+        "generos",
+        "favor"
+      ]
+    }
+  ]
+}
