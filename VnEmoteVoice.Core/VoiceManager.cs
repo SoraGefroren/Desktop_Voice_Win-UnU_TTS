@@ -108,6 +108,43 @@ namespace VnEmoteVoice.Core
         /// </summary>
         public bool HasVoiceStudioConfig => _voiceStudio.IsConfigured;
 
+        #region Gestión del Modelo de Emociones y Lenguaje
+
+        /// <summary>
+        /// Código del idioma activo en el analizador de emociones (ej. "es", "en").
+        /// </summary>
+        public string ActiveEmotionLanguage => EmotionAnalyzer.ActiveLanguage;
+
+        /// <summary>
+        /// Nombre descriptivo del idioma activo en el analizador de emociones (ej. "Español", "English").
+        /// </summary>
+        public string ActiveEmotionLanguageName => EmotionAnalyzer.ActiveLanguageName;
+
+        /// <summary>
+        /// Cantidad de categorías de emociones cargadas en el modelo activo.
+        /// </summary>
+        public int ActiveEmotionsCount => EmotionAnalyzer.ActiveEmotionsCount;
+
+        /// <summary>
+        /// Carga un modelo de emociones desde un archivo JSON externo tras validarlo.
+        /// </summary>
+        public bool LoadEmotionModel(string jsonPath, out string errorMessage)
+            => EmotionAnalyzer.LoadFromJsonFile(jsonPath, out errorMessage);
+
+        /// <summary>
+        /// Restaura el modelo de emociones por defecto en español.
+        /// </summary>
+        public void ResetEmotionModelToDefault()
+            => EmotionAnalyzer.LoadDefaultSpanishModel();
+
+        /// <summary>
+        /// Segmenta y analiza emocionalmente el texto usando el modelo actualmente activo.
+        /// </summary>
+        public List<TextSegment> AnalyzeSegments(string text)
+            => EmotionAnalyzer.SegmentAndAnalyze(text);
+
+        #endregion
+
         /// <summary>
         /// Heurística para detectar voces Online de Windows.
         /// </summary>

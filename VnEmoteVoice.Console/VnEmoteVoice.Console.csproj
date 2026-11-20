@@ -13,10 +13,11 @@
     <ApplicationIcon>..\__Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
-  <!-- Recursos incrustados para la interfaz WPF -->
+  <!-- Recursos incrustados y archivos de configuración para la interfaz WPF -->
   <ItemGroup>
     <Resource Include="..\__Assets\icon.ico" Link="__Assets\icon.ico" />
     <Resource Include="..\__Assets\icon.png" Link="__Assets\icon.png" />
+    <Content Include="..\__Assets\emotions_es.json" Link="__Assets\emotions_es.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

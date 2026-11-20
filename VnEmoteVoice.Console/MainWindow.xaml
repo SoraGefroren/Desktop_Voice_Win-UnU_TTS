@@ -290,7 +290,7 @@
                             <!-- Selector de Voz (se oculta al seleccionar modelo externo) -->
                             <StackPanel x:Name="PanelVoiceSelector" Margin="0,0,0,15">
                                 <TextBlock Text="🎙 Voz" FontWeight="SemiBold" Foreground="#cbd5e1" Margin="0,0,0,5"/>
-                                <ComboBox x:Name="CbVoices" Height="34"/>
+                                <ComboBox x:Name="CbVoices" Height="34" SelectionChanged="CbVoices_SelectionChanged"/>
                             </StackPanel>
 
                             <!-- Cargador de modelo Piper (Externo): visible sólo al elegir "Pipper (Externo)" -->
@@ -450,6 +450,54 @@
                                 <TextBlock x:Name="LblVolume" Text="100%" Foreground="#38bdf8" HorizontalAlignment="Right" FontWeight="Bold"/>
                             </Grid>
                             <Slider x:Name="SliderVolume" Minimum="0" Maximum="100" Value="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SliderVolume_ValueChanged" Margin="0,0,0,20"/>
+
+                            <!-- Control de Modelo de Emociones -->
+                            <StackPanel Margin="0,10,0,0">
+                                <TextBlock Text="🧠 Análisis de Emociones" FontWeight="SemiBold" Foreground="#cbd5e1" Margin="0,0,0,5"/>
+                                <CheckBox x:Name="ChkUseDefaultEmotionModel"
+                                          Content="Usar modelo en Español (por defecto)"
+                                          Foreground="#cbd5e1"
+                                          IsChecked="True"
+                                          Margin="0,0,0,8"
+                                          Checked="ChkUseDefaultEmotionModel_Changed"
+                                          Unchecked="ChkUseDefaultEmotionModel_Changed"/>
+                                <StackPanel x:Name="PanelCustomEmotionModel" Visibility="Collapsed">
+                                    <TextBlock Text="📂 Archivo JSON de emociones:" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,4"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TxtEmotionModelPath"
+                                                 Grid.Column="0"
+                                                 IsReadOnly="True"
+                                                 Background="#0d1117"
+                                                 Foreground="#94a3b8"
+                                                 BorderBrush="#30363d"
+                                                 Height="30"
+                                                 VerticalContentAlignment="Center"
+                                                 Padding="6,0"
+                                                 Text="Ningún archivo seleccionado"
+                                                 FontSize="11"
+                                                 Margin="0,0,6,0"/>
+                                        <Button x:Name="BtnLoadEmotionModel"
+                                                Grid.Column="1"
+                                                Content="Cargar"
+                                                Height="30"
+                                                Padding="10,0"
+                                                Background="#21262d"
+                                                Foreground="#c9d1d9"
+                                                BorderBrush="#30363d"
+                                                Click="BtnLoadEmotionModel_Click"/>
+                                    </Grid>
+                                    <TextBlock x:Name="LblEmotionModelStatus"
+                                               Text=""
+                                               Foreground="#94a3b8"
+                                               FontSize="10"
+                                               Margin="0,4,0,0"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>

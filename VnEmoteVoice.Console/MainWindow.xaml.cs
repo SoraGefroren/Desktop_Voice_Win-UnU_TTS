@@ -26,6 +26,10 @@ namespace VnEmoteVoice.Console
         private bool _isHighlighting = false;
         /// <summary>Flag que indica si el usuario hizo clic en un segmento para forzar un salto inmediato.</summary>
         private bool _jumpRequested = false;
+        /// <summary>Flag que indica si alguna configuración cambió mientras la reproducción estaba pausada.</summary>
+        private bool _settingsChangedWhilePaused = false;
+        /// <summary>Temporizador para amortiguar (debounce) eventos de sliders durante la reproducción.</summary>
+        private System.Windows.Threading.DispatcherTimer? _sliderDebounceTimer;
 
         /// <summary>Ruta al archivo .onnx del modelo Piper externo seleccionado por el usuario.</summary>
         private string _piperOnnxPath = string.Empty;
@@ -121,6 +125,11 @@ namespace VnEmoteVoice.Console
 
             // Actualizar visibilidad de paneles externos según selección inicial
             UpdateExternalPanelsVisibility();
+
+            if (_isPlaying)
+            {
+                RestartCurrentSegmentWithNewSettings();
+            }
         }
 
         private void ChkExternalModel_Unchecked(object sender, RoutedEventArgs e)
@@ -140,6 +149,11 @@ namespace VnEmoteVoice.Console
                 PanelPiperExterno.Visibility = Visibility.Collapsed;
             if (PanelVoiceStudioExterno != null)
                 PanelVoiceStudioExterno.Visibility = Visibility.Collapsed;
+
+            if (_isPlaying)
+            {
+                RestartCurrentSegmentWithNewSettings();
+            }
         }
 
         private void CbLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -148,6 +162,10 @@ namespace VnEmoteVoice.Console
             if (ChkExternalModel?.IsChecked == true)
             {
                 UpdateExternalPanelsVisibility();
+                if (_isPlaying)
+                {
+                    RestartCurrentSegmentWithNewSettings();
+                }
                 return;
             }
 
@@ -156,7 +174,66 @@ namespace VnEmoteVoice.Console
                 var voices = _voiceManager.GetVoicesForLanguage(selectedLang);
                 CbVoices.ItemsSource = voices;
                 if (voices.Count > 0) CbVoices.SelectedIndex = 0;
+
+                if (_isPlaying)
+                {
+                    RestartCurrentSegmentWithNewSettings();
+                }
             }
+        }
+
+        private void CbVoices_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isPlaying)
+            {
+                RestartCurrentSegmentWithNewSettings();
+            }
+        }
+
+        /// <summary>
+        /// Aplica inmediatamente cualquier cambio de idioma, voz, modelo o configuración
+        /// durante la reproducción activa sin necesidad de detener el proceso.
+        /// </summary>
+        private void RestartCurrentSegmentWithNewSettings()
+        {
+            if (!_isPlaying) return;
+
+            if (_isPaused)
+            {
+                // Si está en pausa, marcamos que hubo un cambio para re-sintetizar al reanudar
+                _settingsChangedWhilePaused = true;
+                _voiceManager.StopAudio();
+                return;
+            }
+
+            // Forzar reinicio inmediato del segmento actual con las nuevas configuraciones
+            _jumpRequested = true;
+            _voiceManager.StopAudio();
+        }
+
+        /// <summary>
+        /// Amortigua (debounce) cambios continuos en sliders (velocidad, tono, parámetros VoiceStudio)
+        /// para aplicar el cambio a los 250ms de pausar el arrastre sin saturar la síntesis.
+        /// </summary>
+        private void OnSliderSettingChangedDebounced()
+        {
+            if (!_isPlaying) return;
+
+            if (_sliderDebounceTimer == null)
+            {
+                _sliderDebounceTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(250)
+                };
+                _sliderDebounceTimer.Tick += (s, e) =>
+                {
+                    _sliderDebounceTimer.Stop();
+                    RestartCurrentSegmentWithNewSettings();
+                };
+            }
+
+            _sliderDebounceTimer.Stop();
+            _sliderDebounceTimer.Start();
         }
 
         private void UpdateExternalPanelsVisibility()
@@ -225,6 +302,11 @@ namespace VnEmoteVoice.Console
                 var successBrush = new SolidColorBrush(Color.FromRgb(52, 211, 153)); // #34d399
                 LblOnnxPath.Foreground = successBrush;
                 LblJsonPath.Foreground = successBrush;
+
+                if (_isPlaying)
+                {
+                    RestartCurrentSegmentWithNewSettings();
+                }
             }
             catch (Exception ex)
             {
@@ -263,6 +345,11 @@ namespace VnEmoteVoice.Console
                     LblVoiceStudioStatus.Text = $"Conectado: {profiles.Count} perfil(es) disponible(s)";
                     LblVoiceStudioStatus.Foreground = new SolidColorBrush(Color.FromRgb(52, 211, 153)); // Verde
                     _voiceManager.SetVoiceStudioConfig(url, profiles[0]);
+
+                    if (_isPlaying)
+                    {
+                        RestartCurrentSegmentWithNewSettings();
+                    }
                 }
                 else
                 {
@@ -287,6 +374,11 @@ namespace VnEmoteVoice.Console
             if (CbVoiceStudioProfiles.SelectedItem is string profile)
             {
                 _voiceManager.SetVoiceStudioConfig(TxtVoiceStudioUrl.Text.Trim(), profile);
+
+                if (_isPlaying)
+                {
+                    RestartCurrentSegmentWithNewSettings();
+                }
             }
         }
 
@@ -325,6 +417,11 @@ namespace VnEmoteVoice.Console
                 s.NumStep = (int)SliderNumStep.Value;
                 LblNumStep.Text = $"{s.NumStep}";
             }
+
+            if (_isPlaying)
+            {
+                OnSliderSettingChangedDebounced();
+            }
         }
 
         private void ChkVoiceStudio_Changed(object sender, RoutedEventArgs e)
@@ -335,6 +432,11 @@ namespace VnEmoteVoice.Console
             if (ChkBalanceVolume != null) s.BalanceVolume = ChkBalanceVolume.IsChecked == true;
             if (ChkDenoise != null) s.Denoise = ChkDenoise.IsChecked == true;
             if (ChkPostprocess != null) s.PostprocessOutput = ChkPostprocess.IsChecked == true;
+
+            if (_isPlaying)
+            {
+                RestartCurrentSegmentWithNewSettings();
+            }
         }
 
         private string GetCurrentSelectedVoice()
@@ -392,11 +494,19 @@ namespace VnEmoteVoice.Console
         private void SliderSpeed_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (LblSpeed != null) LblSpeed.Text = $"{e.NewValue:F1}x";
+            if (_isPlaying)
+            {
+                OnSliderSettingChangedDebounced();
+            }
         }
 
         private void SliderPitch_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (LblPitch != null) LblPitch.Text = $"{e.NewValue:F1}";
+            if (_isPlaying)
+            {
+                OnSliderSettingChangedDebounced();
+            }
         }
 
         private void SliderVolume_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -406,6 +516,73 @@ namespace VnEmoteVoice.Console
                 int volPercent = (int)e.NewValue;
                 LblVolume.Text = $"{volPercent}%";
                 _voiceManager?.SetVolume((float)(e.NewValue / 100.0));
+            }
+        }
+
+        // ─── Control de Modelo de Emociones ───────────────────────────────────────────
+
+        private void ChkUseDefaultEmotionModel_Changed(object sender, RoutedEventArgs e)
+        {
+            bool usarPorDefecto = ChkUseDefaultEmotionModel?.IsChecked == true;
+
+            if (PanelCustomEmotionModel != null)
+                PanelCustomEmotionModel.Visibility = usarPorDefecto ? Visibility.Collapsed : Visibility.Visible;
+
+            if (usarPorDefecto)
+            {
+                _voiceManager?.ResetEmotionModelToDefault();
+
+                if (LblEmotionModelStatus != null)
+                {
+                    LblEmotionModelStatus.Text = $"✅ Español por defecto ({EmotionAnalyzer.ActiveEmotionsCount} emociones cargadas)";
+                    LblEmotionModelStatus.Foreground = new SolidColorBrush(Color.FromRgb(52, 211, 153));
+                }
+            }
+        }
+
+        private void BtnLoadEmotionModel_Click(object sender, RoutedEventArgs e)
+        {
+            var dialogo = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Seleccionar archivo de emociones",
+                Filter = "Archivos JSON de emociones (*.json)|*.json",
+                CheckFileExists = true
+            };
+
+            if (dialogo.ShowDialog() == true)
+            {
+                string ruta = dialogo.FileName;
+
+                if (TxtEmotionModelPath != null)
+                    TxtEmotionModelPath.Text = ruta;
+
+                if (LblEmotionModelStatus != null)
+                {
+                    LblEmotionModelStatus.Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36));
+                    LblEmotionModelStatus.Text = "⏳ Validando archivo...";
+                }
+
+                bool cargadoOk = _voiceManager.LoadEmotionModel(ruta, out string mensajeError);
+
+                if (LblEmotionModelStatus != null)
+                {
+                    if (cargadoOk)
+                    {
+                        LblEmotionModelStatus.Text = $"✅ {EmotionAnalyzer.ActiveLanguageName} ({EmotionAnalyzer.ActiveEmotionsCount} emociones cargadas)";
+                        LblEmotionModelStatus.Foreground = new SolidColorBrush(Color.FromRgb(52, 211, 153));
+                    }
+                    else
+                    {
+                        LblEmotionModelStatus.Text = $"❌ {mensajeError}";
+                        LblEmotionModelStatus.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
+
+                        // Restaurar al modelo por defecto si el archivo no es válido
+                        _voiceManager?.ResetEmotionModelToDefault();
+
+                        if (ChkUseDefaultEmotionModel != null)
+                            ChkUseDefaultEmotionModel.IsChecked = true;
+                    }
+                }
             }
         }
 
@@ -438,9 +615,20 @@ namespace VnEmoteVoice.Console
         {
             if (_isPlaying && _isPaused)
             {
-                _voiceManager.ResumeAudio();
-                _isPaused = false;
-                BtnPause.Content = "⏸";
+                if (_settingsChangedWhilePaused)
+                {
+                    _settingsChangedWhilePaused = false;
+                    _isPaused = false;
+                    BtnPause.Content = "⏸";
+                    _jumpRequested = true;
+                    _voiceManager.StopAudio();
+                }
+                else
+                {
+                    _voiceManager.ResumeAudio();
+                    _isPaused = false;
+                    BtnPause.Content = "⏸";
+                }
                 return;
             }
 
@@ -469,12 +657,6 @@ namespace VnEmoteVoice.Console
 
         private async Task PlaySegmentsLoop()
         {
-            string selectedLang = GetCurrentSelectedLanguage();
-            string selectedVoice = GetCurrentSelectedVoice();
-            float speed = (float)SliderSpeed.Value;
-            float pitch = (float)SliderPitch.Value;
-            float volume = (float)(SliderVolume.Value / 100.0);
-
             while (_currentSegmentIndex < _segments.Count && _isPlaying)
             {
                 _jumpRequested = false;
@@ -486,6 +668,19 @@ namespace VnEmoteVoice.Console
                     _currentSegmentIndex++;
                     continue;
                 }
+
+                if (!ValidateReadyToSynthesize())
+                {
+                    _isPlaying = false;
+                    ResetToNeutralState();
+                    break;
+                }
+
+                string selectedLang = GetCurrentSelectedLanguage();
+                string selectedVoice = GetCurrentSelectedVoice();
+                float speed = (float)SliderSpeed.Value;
+                float pitch = (float)SliderPitch.Value;
+                float volume = (float)(SliderVolume.Value / 100.0);
 
                 LblEmotionEmoji.Text = segment.Emoji;
                 LblEmotionName.Text = segment.Emotion;
@@ -776,9 +971,20 @@ namespace VnEmoteVoice.Console
             }
             else
             {
-                _voiceManager.ResumeAudio();
-                _isPaused = false;
-                BtnPause.Content = "⏸";
+                if (_settingsChangedWhilePaused)
+                {
+                    _settingsChangedWhilePaused = false;
+                    _isPaused = false;
+                    BtnPause.Content = "⏸";
+                    _jumpRequested = true;
+                    _voiceManager.StopAudio();
+                }
+                else
+                {
+                    _voiceManager.ResumeAudio();
+                    _isPaused = false;
+                    BtnPause.Content = "⏸";
+                }
             }
         }
 
@@ -794,6 +1000,8 @@ namespace VnEmoteVoice.Console
             _isPlaying = false;
             _isPaused = false;
             _jumpRequested = false;
+            _settingsChangedWhilePaused = false;
+            _sliderDebounceTimer?.Stop();
             _currentSegmentIndex = 0;
 
             Dispatcher.Invoke(() =>
