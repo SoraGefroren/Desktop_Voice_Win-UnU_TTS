@@ -1,0 +1,440 @@
+{
+  "language": "en-GB",
+  "language_name": "English (British)",
+  "version": "1.0",
+  "description": "Extended British English emotion dictionary for VnEmoteVoice with contextual analysis, punctuation modifiers and avatar transition support.",
+  "punctuation_modifiers": {
+    "mixed_excl_quest": "Agitated",
+    "multiple_excl": "Shouting",
+    "single_excl": "Exclaimed",
+    "multiple_quest": "Questioning",
+    "single_quest": "Asking",
+    "all_uppercase": "Shouting",
+    "ellipsis_mapping": {
+      "Sadness": "Broken",
+      "Exhaustion": "Sighing",
+      "Doubt": "Wavering",
+      "Fury": "Restrained",
+      "Fear": "Trembling",
+      "Intrigue": "Whispering",
+      "Joy": "Restrained",
+      "Shame": "Ashamed",
+      "Disappointment": "Bitter",
+      "default": "Wavering"
+    }
+  },
+  "transition_pivot_patterns": [
+    { "pattern": "\\b(however|nevertheless|on\\s+the\\s+contrary|instead|despite\\s+(?:everything|that))\\b", "type": "Contrast" },
+    { "pattern": "(?:,\\s*|\\.{3}\\s*|\\s+)\\b(but|although|yet|though)\\b(?:\\s+now)?", "type": "Contrast" },
+    { "pattern": "\\b(all\\s+of\\s+a\\s+sudden|suddenly|out\\s+of\\s+nowhere|unexpectedly|without\\s+warning)\\b", "type": "Sudden Turn" },
+    { "pattern": "\\b(but\\s+now|and\\s+now|in\\s+the\\s+end|finally|all\\s+at\\s+once|at\\s+last)\\b", "type": "Temporal Turn" },
+    { "pattern": "(?:\\.{3,}|…|——|--|;)\\s*", "type": "Dramatic Pause" },
+    { "pattern": "\\?\\s*(?:!)", "type": "Emotional Break" }
+  ],
+  "negation_rules": [
+    {
+      "trigger_phrases": ["i'm not afraid", "without fear", "i don't fear", "fearless", "not scared at all", "nothing scares me"],
+      "remove_emotion": "Fear",
+      "add_emotion": "Confidence",
+      "bonus_score": 3.0
+    },
+    {
+      "trigger_phrases": ["i'm not sure", "not certain", "i'm not convinced", "i don't think so", "i have my doubts", "i can't say for certain"],
+      "add_emotion": "Doubt",
+      "bonus_score": 3.0
+    },
+    {
+      "trigger_phrases": ["i can't take it anymore", "i'm done", "i give up", "i'm absolutely shattered", "i'm exhausted", "i've had enough"],
+      "add_emotion": "Exhaustion",
+      "bonus_score": 3.5
+    }
+  ],
+  "emotions": [
+    {
+      "name": "Fury",
+      "emoji": "🤬",
+      "group": "Anger",
+      "weight": 1.4,
+      "phrases": [
+        "i'll kill you", "i'll destroy you", "i hate you", "you bloody idiot", "you utter fool",
+        "damn it all", "sons of bitches", "i'll tear you apart", "shut your mouth", "just die already",
+        "i'll make you pay", "don't you dare", "you'll pay for this", "you are scum", "you absolute wretch"
+      ],
+      "stems": [
+        "furi", "furiou", "rage", "raging", "wrath", "wrathful", "seeth", "livid",
+        "damned", "stupid", "hatred", "despicabl", "explod", "insufferabl",
+        "loath", "vile", "detest", "disgrac", "bastard", "scoundrel", "contemptib"
+      ]
+    },
+    {
+      "name": "Intrigue",
+      "emoji": "🕵️",
+      "group": "Mystery",
+      "weight": 1.1,
+      "phrases": [
+        "how peculiar", "something doesn't add up", "that doesn't quite fit", "what is he hiding",
+        "who could it be", "what is he plotting", "i have my suspicions", "something smells off",
+        "that makes no sense", "i wonder what happened", "what secret are you keeping", "how mysterious"
+      ],
+      "stems": [
+        "intrigu", "mysteri", "enigmat", "curious", "suspicio", "secret", "conceal",
+        "puzzle", "shadows", "whisper", "conspir", "clues", "hint", "investigat", "riddle"
+      ]
+    },
+    {
+      "name": "Fear",
+      "emoji": "😨",
+      "group": "Dread",
+      "weight": 1.2,
+      "phrases": [
+        "i'm terrified", "that frightens me", "don't come near me", "i'm shaking with fright", "how dreadful",
+        "i'm scared stiff", "it frightens me", "i've got the shivers", "i don't want to die", "what was that noise"
+      ],
+      "stems": [
+        "afraid", "dread", "fright", "frighten", "scared", "tremble", "trembl",
+        "threat", "chill", "shudder", "fearful", "unsettl", "intimid", "terror", "unnerv"
+      ]
+    },
+    {
+      "name": "Terror",
+      "emoji": "😱",
+      "group": "Extreme Dread",
+      "weight": 1.4,
+      "phrases": [
+        "cold blood", "living nightmare", "it's an abomination", "terrifying monster",
+        "unimaginable horror", "it has no face", "it's going to devour us", "absolute dread"
+      ],
+      "stems": [
+        "terror", "horrif", "horrified", "atrocious", "nightmare", "monster", "abominat",
+        "sinister", "macabr", "horror", "petrified", "demon", "harrowing", "corpse", "ghastl"
+      ]
+    },
+    {
+      "name": "Panic",
+      "emoji": "🚨",
+      "group": "Crisis",
+      "weight": 1.3,
+      "phrases": [
+        "there's no way out", "every man for himself", "we're done for", "i can't breathe",
+        "i'm suffocating", "i can't get out", "someone help me", "please make it stop", "we're all going to die"
+      ],
+      "stems": [
+        "panic", "run for it", "escape", "help me", "distress", "hysteri",
+        "trapped", "desperat", "despair", "anguish", "suffocating", "urgenc", "crisis"
+      ]
+    },
+    {
+      "name": "Mockery",
+      "emoji": "😏",
+      "group": "Sarcasm",
+      "weight": 1.2,
+      "phrases": [
+        "how pathetic", "just look at you", "as if you could", "you're a right laugh",
+        "oh yes of course", "poor little you", "don't make me laugh", "what a rubbish joke",
+        "as naive as ever", "did you really think you could manage", "you're a disgrace"
+      ],
+      "stems": [
+        "mock", "sneer", "jeer", "haha", "hahaha", "hehe", "pathetic", "ridicul",
+        "clown", "loser", "pitiful", "useless", "dull", "naive", "jest", "buffoon"
+      ]
+    },
+    {
+      "name": "Lust",
+      "emoji": "💋",
+      "group": "Seduction",
+      "weight": 1.3,
+      "phrases": [
+        "come here", "come closer", "your lips", "kiss me now", "so irresistible",
+        "don't resist", "delicious pleasure", "skin to skin", "i desire you",
+        "make me yours", "what you do to me", "you're absolutely irresistible"
+      ],
+      "stems": [
+        "lust", "seduc", "sensual", "smould", "kiss", "kisses", "lips",
+        "caress", "desire", "tempt", "excit", "provocat", "sexy", "passion", "erotic"
+      ]
+    },
+    {
+      "name": "Ego",
+      "emoji": "🦚",
+      "group": "Pride",
+      "weight": 1.2,
+      "phrases": [
+        "my greatness", "i am the best", "no one like me", "my name shall be remembered",
+        "i am unique", "my superior intellect", "admire my power", "kneel before me",
+        "my immortal legacy", "i am a perfect being"
+      ],
+      "stems": [
+        "ego", "narcis", "supreme", "perfect", "unparallel", "peerless",
+        "worship", "kneel", "immortal", "magnificen", "vanity", "glory", "divine", "queen", "king"
+      ]
+    },
+    {
+      "name": "Overconfidence",
+      "emoji": "😎",
+      "group": "Pride",
+      "weight": 1.2,
+      "phrases": [
+        "piece of cake", "far too easy", "no one can touch me", "didn't even break a sweat",
+        "they haven't got a chance", "child's play", "they didn't last a second",
+        "i've got talent to spare", "it's a doddle", "this'll be a stroll in the park"
+      ],
+      "stems": [
+        "overconfiden", "dead easy", "unbeatabl", "unstoppabl", "undefeated",
+        "effortless", "cakewalk", "flawless", "overwhelm", "steamroll"
+      ]
+    },
+    {
+      "name": "Arrogance",
+      "emoji": "💅",
+      "group": "Disdain",
+      "weight": 1.2,
+      "phrases": [
+        "you're not on my level", "how dare you", "insignificant little creature",
+        "don't waste my time", "i shan't lower myself to your level", "wretched creature",
+        "revolting worm", "get out of my sight", "ignorant insolent fool"
+      ],
+      "stems": [
+        "arroganc", "arrogant", "haughti", "disdain", "contempt", "inferior",
+        "insolent", "insignificant", "plebeian", "wretched", "pompous", "condescend"
+      ]
+    },
+    {
+      "name": "Confidence",
+      "emoji": "🛡️",
+      "group": "Assurance",
+      "weight": 1.1,
+      "phrases": [
+        "i'm certain", "it'll all work out", "i can do this", "count on me",
+        "i have faith", "i know we can", "we'll manage it together", "there's no doubt we shall triumph"
+      ],
+      "stems": [
+        "confiden", "trust", "certain", "resolut", "capable",
+        "determined", "bravery", "courageous", "strength", "optimis"
+      ]
+    },
+    {
+      "name": "Harmony",
+      "emoji": "🕊️",
+      "group": "Serenity",
+      "weight": 1.0,
+      "phrases": [
+        "inner peace", "all is calm", "a gentle breeze", "absolute tranquillity",
+        "in perfect stillness", "breathe deeply", "feel the peace", "a moment of serenity"
+      ],
+      "stems": [
+        "harmoni", "serenity", "peace", "calm", "tranquil", "still",
+        "placid", "equilibrium", "quiet", "gentle", "relax"
+      ]
+    },
+    {
+      "name": "Demand",
+      "emoji": "⚖️",
+      "group": "Authority",
+      "weight": 1.2,
+      "phrases": [
+        "right now", "do it at once", "i won't accept excuses", "i demand an explanation",
+        "follow my orders", "i'm ordering you", "not another word", "do as i say"
+      ],
+      "stems": [
+        "demand", "order", "command", "disciplin", "obligat",
+        "strict", "rigour", "insist", "obey", "immediately", "forthwith"
+      ]
+    },
+    {
+      "name": "Doubt",
+      "emoji": "🤨",
+      "group": "Uncertainty",
+      "weight": 1.0,
+      "phrases": [
+        "i don't know", "perhaps", "can that be true", "i'm not so sure",
+        "is that possible", "what if we're wrong", "i find that hard to believe", "what ought i to do"
+      ],
+      "stems": [
+        "doubt", "doubtful", "unsure", "uncertain", "perhaps", "maybe",
+        "hesitant", "unclear", "perplexed", "puzzled", "waver", "possib"
+      ]
+    },
+    {
+      "name": "Exhaustion",
+      "emoji": "🥱",
+      "group": "Fatigue",
+      "weight": 1.1,
+      "phrases": [
+        "i'm absolutely knackered", "i can't go on", "my eyes are aching", "i need to sleep",
+        "no energy left", "it's been a dreadfully long day", "i've no strength left", "i give up for today"
+      ],
+      "stems": [
+        "exhausted", "exhaustion", "weary", "fatigue", "worn out", "drained",
+        "sleep", "drowsy", "spent", "tedious", "shattered", "knackered"
+      ]
+    },
+    {
+      "name": "Fulfilment",
+      "emoji": "✨",
+      "group": "Satisfaction",
+      "weight": 1.1,
+      "phrases": [
+        "i couldn't ask for more", "everything is perfect", "i feel whole",
+        "my heart is full", "absolute happiness", "an unforgettable moment", "total fulfilment"
+      ],
+      "stems": [
+        "fulfilment", "fulfil", "complete", "content", "bliss",
+        "satisf", "prosper", "glorious", "blessed", "radiant"
+      ]
+    },
+    {
+      "name": "Irritation",
+      "emoji": "😤",
+      "group": "Annoyance",
+      "weight": 1.1,
+      "phrases": [
+        "that's quite enough", "stop being a nuisance", "you're getting on my nerves", "what a bother",
+        "don't bother me", "not that again", "you're such a pest", "you've exhausted my patience"
+      ],
+      "stems": [
+        "irrit", "bother", "annoy", "nuisance", "nag",
+        "uncomfortable", "vex", "grump", "tiresome", "pester", "fed up"
+      ]
+    },
+    {
+      "name": "Sadness",
+      "emoji": "😢",
+      "group": "Melancholy",
+      "weight": 1.3,
+      "phrases": [
+        "i feel like crying", "my heart aches", "why me",
+        "it's all over", "i'm utterly alone", "i weep for you", "you've broken my heart"
+      ],
+      "stems": [
+        "sad", "weep", "tears", "depress", "loneliness", "grief",
+        "melanchol", "sorrow", "distress", "emptiness", "heartbroken", "desolat"
+      ]
+    },
+    {
+      "name": "Joy",
+      "emoji": "😄",
+      "group": "Happiness",
+      "weight": 1.2,
+      "phrases": [
+        "what wonderful news", "i'm so happy", "it's marvellous",
+        "how delightful", "the best day of my life", "smile with me", "let's celebrate"
+      ],
+      "stems": [
+        "joy", "joyful", "happy", "happi", "cheerful", "celebrat",
+        "brilliant", "fabulous", "enthusias", "thrilled", "laughter", "elated"
+      ]
+    },
+    {
+      "name": "Surprise",
+      "emoji": "😲",
+      "group": "Astonishment",
+      "weight": 1.1,
+      "phrases": [
+        "i never saw that coming", "incredible but true", "what a surprise",
+        "good heavens", "it can't be true", "what a remarkable twist", "i never imagined this"
+      ],
+      "stems": [
+        "surpris", "astonish", "unbeliev", "astound", "dumbfound",
+        "disbelief", "awestruck", "gobsmack", "unforeseen", "flabbergast"
+      ]
+    },
+    {
+      "name": "Disappointment",
+      "emoji": "😞",
+      "group": "Disillusionment",
+      "weight": 1.2,
+      "phrases": [
+        "i expected better from you", "you've let me down", "what a dreadful disappointment",
+        "it was all an illusion", "you've broken my trust", "it was all for nothing", "it wasn't worth it"
+      ],
+      "stems": [
+        "disappoint", "disillusio", "let down", "disenchant", "bitter",
+        "frustrated", "betrayal", "hopelessn", "defeated"
+      ]
+    },
+    {
+      "name": "Hope",
+      "emoji": "🌟",
+      "group": "Aspiration",
+      "weight": 1.1,
+      "phrases": [
+        "tomorrow will be better", "i haven't lost hope", "our moment will come",
+        "a light in the darkness", "there's still time", "a new dawn", "things will improve"
+      ],
+      "stems": [
+        "hope", "hopeful", "aspir", "dream", "light", "reborn",
+        "promis", "longing", "future", "resurgen", "faith"
+      ]
+    },
+    {
+      "name": "Tenderness",
+      "emoji": "🥺",
+      "group": "Affection",
+      "weight": 1.1,
+      "phrases": [
+        "how lovely", "you're adorable", "my precious little one",
+        "how sweet you are", "i want to give you a hug", "i melt with love", "pure affection"
+      ],
+      "stems": [
+        "tender", "sweet", "adorable", "hug", "affection",
+        "fond", "gentle", "dear", "angel", "cherish"
+      ]
+    },
+    {
+      "name": "Envy",
+      "emoji": "🐍",
+      "group": "Resentment",
+      "weight": 1.2,
+      "phrases": [
+        "why him and not me", "he doesn't deserve it", "they always give him everything",
+        "i hope things go badly for him", "that much luck isn't natural", "i should have had that"
+      ],
+      "stems": [
+        "envi", "jealous", "resent", "grudge", "spite",
+        "covet", "bitter", "unfair", "selfish"
+      ]
+    },
+    {
+      "name": "Shame",
+      "emoji": "😳",
+      "group": "Embarrassment",
+      "weight": 1.1,
+      "phrases": [
+        "how embarrassing", "i wish the ground would swallow me up", "i went bright red",
+        "how mortifying", "i shouldn't have said that", "i'm so embarrassed in front of everyone", "i wish i could disappear"
+      ],
+      "stems": [
+        "shame", "embarrass", "mortif", "blush", "humiliat",
+        "timid", "flustered", "bashful", "disgrace"
+      ]
+    },
+    {
+      "name": "Guilt",
+      "emoji": "🙇",
+      "group": "Remorse",
+      "weight": 1.2,
+      "phrases": [
+        "it was all my fault", "please forgive me", "i should never have done it",
+        "i'm so terribly sorry", "i carry this burden", "i'm sorry with all my heart"
+      ],
+      "stems": [
+        "guilt", "culpable", "remorse", "regret", "forgiven",
+        "apolog", "sorrow", "responsibl", "lament", "contrite"
+      ]
+    },
+    {
+      "name": "Gratitude",
+      "emoji": "🙏",
+      "group": "Thankfulness",
+      "weight": 1.1,
+      "phrases": [
+        "thank you very much", "i thank you from the bottom of my heart", "eternally grateful",
+        "i don't know how to repay you", "thank you for being there", "my eternal gratitude"
+      ],
+      "stems": [
+        "thank", "grateful", "gratitude", "appreciat", "recognis",
+        "appreciat", "kindness", "generos", "favour", "bless"
+      ]
+    }
+  ]
+}

@@ -530,7 +530,7 @@ namespace VnEmoteVoice.Console
 
             if (usarPorDefecto)
             {
-                _voiceManager?.ResetEmotionModelToDefault();
+                EmotionAnalyzer.LoadDefaultSpanishModel();
 
                 if (LblEmotionModelStatus != null)
                 {
@@ -562,7 +562,7 @@ namespace VnEmoteVoice.Console
                     LblEmotionModelStatus.Text = "⏳ Validando archivo...";
                 }
 
-                bool cargadoOk = _voiceManager.LoadEmotionModel(ruta, out string mensajeError);
+                bool cargadoOk = EmotionAnalyzer.LoadFromJsonFile(ruta, out string mensajeError);
 
                 if (LblEmotionModelStatus != null)
                 {
@@ -577,7 +577,7 @@ namespace VnEmoteVoice.Console
                         LblEmotionModelStatus.Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113));
 
                         // Restaurar al modelo por defecto si el archivo no es válido
-                        _voiceManager?.ResetEmotionModelToDefault();
+                        EmotionAnalyzer.LoadDefaultSpanishModel();
 
                         if (ChkUseDefaultEmotionModel != null)
                             ChkUseDefaultEmotionModel.IsChecked = true;
