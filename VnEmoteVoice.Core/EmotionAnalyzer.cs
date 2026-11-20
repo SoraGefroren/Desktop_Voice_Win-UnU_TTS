@@ -43,20 +43,20 @@ namespace VnEmoteVoice.Core
     }
 
     /// <summary>
-    /// Segmento de texto procesado para síntesis y actuación de avatar VTuber.
+    /// Segmento de texto procesado para síntesis y actuación de avatar Narrador Virtual.
     /// </summary>
     public class TextSegment
     {
         public string Text { get; set; } = string.Empty;
         public int StartIndex { get; set; }
         public int Length { get; set; }
-        
+
         /// <summary>
         /// Emoción representativa calificada con modificadores de puntuación (ej. "Alegría/Exaltada", "Tristeza/Preguntando"
         /// o "Duda/Preguntando ➔ Furia/Gritando" si hay transición).
         /// </summary>
         public string Emotion { get; set; } = "Neutral";
-        
+
         /// <summary>
         /// Emoji representativo (si hay transición, muestra "EmojiA➔EmojiB").
         /// </summary>
@@ -188,7 +188,7 @@ namespace VnEmoteVoice.Core
     #endregion
 
     /// <summary>
-    /// Motor extensible de análisis emocional de texto para avatares y VTubers.
+    /// Motor extensible de análisis emocional de texto para avatares y Narradores Virtuales.
     /// Soporta carga dinámica de modelos por archivo JSON en múltiples idiomas y configuraciones.
     /// </summary>
     public static class EmotionAnalyzer

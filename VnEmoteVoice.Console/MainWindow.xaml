@@ -261,7 +261,7 @@
                             <Button x:Name="BtnSegmentedDownload" Content="🧩" FontSize="18" Width="90" Height="40"
                                     Background="#21262d" Foreground="#cbd5e1" FontWeight="SemiBold"
                                     BorderBrush="#30363d" BorderThickness="1" Cursor="Hand"
-                                    ToolTip="Descarga segmentada por frases con metadatos JSON para VTuber"
+                                    ToolTip="Descarga segmentada por frases con metadatos JSON para Narrador Virtual"
                                     Click="BtnSegmentedDownload_Click">
                                 <Button.Resources>
                                     <Style TargetType="Border">

@@ -1042,7 +1042,7 @@ namespace VnEmoteVoice.Console
             SaveFileDialog saveFileDialog = new SaveFileDialog
             {
                 Filter = "Archivo de audio WAV (*.wav)|*.wav",
-                FileName = $"vtuber_audio_{DateTime.Now:yyyyMMdd_HHmmss}.wav",
+                FileName = $"vnarrator_audio_{DateTime.Now:yyyyMMdd_HHmmss}.wav",
                 InitialDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
             };
 
