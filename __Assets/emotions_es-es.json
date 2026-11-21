@@ -1,8 +1,8 @@
 {
-  "language": "es",
-  "language_name": "Español",
+  "language": "es-ES",
+  "language_name": "Español (España)",
   "version": "1.0",
-  "description": "Diccionario extendido de emociones en español para VnEmoteVoice con análisis contextual, modificadores de puntuación y transiciones de avatar.",
+  "description": "Diccionario extendido de emociones en español de España (castellano) para VnEmoteVoice con análisis contextual, modificadores de puntuación y transiciones de avatar.",
   "punctuation_modifiers": {
     "mixed_excl_quest": "Agitada",
     "multiple_excl": "Gritando",
@@ -36,11 +36,11 @@
       "type": "Contraste"
     },
     {
-      "pattern": "\\b(de\\s+repente|de\\s+pronto|subitamente|inesperadamente)\\b",
+      "pattern": "\\b(de\\s+repente|de\\s+pronto|subitamente|inesperadamente|de\\s+golpe|de\\s+buenas\\s+a\\s+primeras)\\b",
       "type": "Giro Súbito"
     },
     {
-      "pattern": "\\b(pero\\s+ahora|y\\s+ahora|al\\s+final|finalmente|de\\s+golpe)\\b",
+      "pattern": "\\b(pero\\s+ahora|y\\s+ahora|al\\s+final|finalmente|por\\s+fin)\\b",
       "type": "Giro Temporal"
     },
     {
@@ -59,7 +59,8 @@
         "sin miedo",
         "no temo",
         "sin temor",
-        "cero miedo"
+        "ni pizca de miedo",
+        "nada de miedo"
       ],
       "remove_emotion": "Miedo",
       "add_emotion": "Confianza",
@@ -71,7 +72,8 @@
         "no se si",
         "no estoy convencido",
         "no creo que",
-        "tengo mis dudas"
+        "tengo mis dudas",
+        "no lo tengo claro"
       ],
       "add_emotion": "Duda",
       "bonus_score": 3.0
@@ -79,7 +81,10 @@
     {
       "trigger_phrases": [
         "no puedo mas",
-        "no doy mas",
+        "no doy mas de mi",
+        "estoy reventado",
+        "estoy hecho polvo",
+        "no puedo con mi alma",
         "me rindo",
         "ya no aguanto",
         "estoy exhausto"
@@ -95,20 +100,21 @@
       "group": "Ira",
       "weight": 1.4,
       "phrases": [
-        "te matare",
+        "te voy a matar",
         "te voy a destruir",
         "te odio",
-        "maldito infeliz",
+        "maldito seas",
         "estupido idiota",
-        "maldita sea",
-        "hijos de perra",
-        "los destruire",
+        "hijos de puta",
+        "me cago en",
+        "la madre que te pario",
+        "te parto la cara",
         "callate de una vez",
-        "muere de una vez",
+        "muerete de una vez",
         "te hare pedazos",
         "no te atrevas",
-        "me las pagaras",
-        "pagaras por esto",
+        "me las vas a pagar",
+        "te vas a enterar",
         "eres una escoria"
       ],
       "stems": [
@@ -129,10 +135,10 @@
         "revienta",
         "exploto",
         "infeliz",
-        "pudran",
         "asqueros",
         "bastard",
         "cabron",
+        "hostia",
         "despreciabl"
       ]
     },
@@ -149,12 +155,12 @@
         "quien sera",
         "que trama",
         "tengo mis sospechas",
-        "algo huele mal",
+        "aqui hay gato encerrado",
+        "algo huele a chamusquina",
         "no tiene sentido",
-        "me pregunto que paso",
+        "me pregunto que habra pasado",
         "que secreto guardas",
-        "algo se oculta aqui",
-        "que misterio"
+        "algo no me convence"
       ],
       "stems": [
         "intriga",
@@ -170,8 +176,7 @@
         "conspiracion",
         "pistas",
         "indicio",
-        "investig",
-        "acertijo"
+        "investig"
       ]
     },
     {
@@ -184,12 +189,13 @@
         "me da miedo",
         "no te acerques",
         "tiemblo de miedo",
-        "que miedo",
+        "que acojone",
+        "me da mal rollo",
         "estoy asustado",
         "me asusta",
         "siento escalofrios",
         "no quiero morir",
-        "que fue ese ruido"
+        "que ha sido ese ruido"
       ],
       "stems": [
         "miedo",
@@ -204,7 +210,9 @@
         "pavor",
         "temeros",
         "insegur",
-        "intimid"
+        "intimid",
+        "canguel",
+        "acojon"
       ]
     },
     {
@@ -249,17 +257,17 @@
         "no hay salida",
         "salvese quien pueda",
         "estamos perdidos",
-        "no respiro",
+        "no puedo respirar",
         "me ahogo",
-        "no puedo salir",
-        "alguien ayudeme",
-        "por favor paren",
+        "no puedo salir de aqui",
+        "que alguien me ayude",
+        "por favor parad",
         "vamos a morir todos"
       ],
       "stems": [
         "panico",
-        "corran",
-        "escapen",
+        "corred",
+        "escapad",
         "auxili",
         "socorr",
         "ayuda",
@@ -278,17 +286,18 @@
       "group": "Sarcasmo",
       "weight": 1.2,
       "phrases": [
-        "que patetico",
-        "mirate nada mas",
+        "menudo payaso",
+        "venga ya",
+        "anda ya",
         "como si pudieras",
+        "menudo pringao",
         "que risa me das",
-        "uy si claro",
-        "pobrecito de ti",
+        "pobrecillo de ti",
         "no me hagas reir",
-        "que chiste tan malo",
+        "menudo chiste",
         "tan ingenuo como siempre",
-        "en serio creiste que podias",
-        "das lastima"
+        "de verdad creias que podias",
+        "das pena"
       ],
       "stems": [
         "burla",
@@ -301,12 +310,12 @@
         "ridicul",
         "payas",
         "perdedor",
-        "pobrecit",
+        "pringad",
         "inutil",
         "ilus",
         "ingenu",
         "chiste",
-        "payaso"
+        "cachond"
       ]
     },
     {
@@ -319,14 +328,13 @@
         "acercate mas",
         "tus labios",
         "besame ahora",
-        "tan ardiente",
+        "que morbazo",
         "no te resistas",
         "delicioso placer",
         "piel con piel",
         "deseo tu cuerpo",
         "hazme tuyo",
         "hazme tuya",
-        "provocas en mi",
         "eres irresistible"
       ],
       "stems": [
@@ -344,7 +352,8 @@
         "provocativ",
         "sexy",
         "pasion",
-        "erot"
+        "erot",
+        "morb"
       ]
     },
     {
@@ -354,15 +363,16 @@
       "weight": 1.2,
       "phrases": [
         "mi grandeza",
+        "soy el amo",
         "soy el mejor",
         "nadie como yo",
         "mi nombre sera recordado",
         "soy unico",
         "mi intelecto superior",
-        "admiren mi poder",
-        "arrodillense ante mi",
+        "admirad mi poder",
+        "arrodillaos ante mi",
         "mi legado inmortal",
-        "soy un ser perfecto"
+        "soy insuperable"
       ],
       "stems": [
         "ego",
@@ -372,7 +382,8 @@
         "perfecta",
         "inigualable",
         "adoren",
-        "arrodillen",
+        "adorad",
+        "arrodill",
         "inmortal",
         "magnific",
         "vanidad",
@@ -388,28 +399,29 @@
       "group": "Orgullo",
       "weight": 1.2,
       "phrases": [
+        "esta chupado",
+        "esta tirado",
+        "coser y cantar",
         "pan comido",
         "demasiado facil",
         "nadie puede conmigo",
-        "ni me despeine",
-        "no tienen oportunidad",
+        "no tienen nada que hacer",
         "juego de ninos",
-        "no me duraron ni un segundo",
+        "no me han durado ni un asalto",
         "me sobra talento",
-        "esta regalado",
-        "esto sera un paseo"
+        "sera un paseo"
       ],
       "stems": [
         "sobreconfianz",
+        "chupad",
+        "tirad",
         "facilisim",
         "invencibl",
         "imparabl",
         "invict",
         "sobradisim",
-        "regalado",
         "impecabl",
-        "arras",
-        "arroll"
+        "arras"
       ]
     },
     {
@@ -419,14 +431,14 @@
       "weight": 1.2,
       "phrases": [
         "no estas a mi nivel",
+        "no me llegas a la suela",
         "como te atreves",
         "insecto insignificante",
-        "no pierdas mi tiempo",
+        "no me hagas perder el tiempo",
         "no me rebajare a tu nivel",
         "criatura miserable",
-        "gusano repugnante",
-        "aparta de mi vista",
-        "ignorante insolente"
+        "quitate de mi vista",
+        "insolente"
       ],
       "stems": [
         "soberbi",
@@ -439,7 +451,8 @@
         "insignificant",
         "plebey",
         "miserabl",
-        "arrogant"
+        "arrogant",
+        "chul"
       ]
     },
     {
@@ -450,12 +463,12 @@
       "phrases": [
         "estoy seguro",
         "todo saldra bien",
-        "puedo lograrlo",
+        "puedo conseguirlo",
         "cuenta conmigo",
         "tengo fe",
         "se que podemos",
-        "lo lograremos juntos",
-        "no hay duda de que triunfaremos"
+        "lo conseguiremos juntos",
+        "seguro que triunfamos"
       ],
       "stems": [
         "confianz",
@@ -482,7 +495,7 @@
         "brisa suave",
         "tranquilidad absoluta",
         "en perfecta calma",
-        "respira profundo",
+        "respira hondo",
         "siente la paz",
         "momento de serenidad"
       ],
@@ -508,12 +521,13 @@
       "phrases": [
         "ahora mismo",
         "hazlo ya",
-        "no acepto excusas",
+        "no admito excusas",
         "exijo una explicacion",
         "obedece mis ordenes",
         "te lo ordeno",
         "ni una palabra mas",
-        "haz lo que digo"
+        "a la de ya",
+        "haz lo que te digo"
       ],
       "stems": [
         "exig",
@@ -535,6 +549,7 @@
       "weight": 1.0,
       "phrases": [
         "no lo se",
+        "no lo tengo claro",
         "tal vez",
         "sera verdad",
         "no estoy tan seguro",
@@ -564,18 +579,21 @@
       "group": "Fatiga",
       "weight": 1.1,
       "phrases": [
-        "estoy agotado",
-        "no doy mas",
-        "me duelen los ojos",
+        "estoy reventado",
+        "estoy hecho polvo",
+        "no puedo con mi alma",
+        "no puedo mas",
+        "no doy mas de mi",
+        "me caigo de sueno",
         "necesito dormir",
-        "sin energias",
-        "fue un dia muy largo",
-        "ya no tengo fuerzas",
-        "me rindo por hoy"
+        "sin fuerzas",
+        "menuda paliza de dia",
+        "ya no me quedan fuerzas"
       ],
       "stems": [
         "cansad",
         "cansanci",
+        "reventad",
         "agotad",
         "fatig",
         "exhaust",
@@ -584,7 +602,8 @@
         "pesadez",
         "rendid",
         "tedi",
-        "desgast"
+        "desgast",
+        "molid"
       ]
     },
     {
@@ -595,11 +614,11 @@
       "phrases": [
         "no pido nada mas",
         "todo es perfecto",
-        "me siento completo",
-        "corazon lleno",
+        "me siento pleno",
         "felicidad absoluta",
         "momento inolvidable",
-        "plenitud total"
+        "plenitud total",
+        "es maravilloso"
       ],
       "stems": [
         "plenitud",
@@ -620,14 +639,15 @@
       "group": "Molestia",
       "weight": 1.1,
       "phrases": [
-        "ya basta",
-        "deja de molestar",
-        "me tienes harto",
-        "que fastidio",
-        "no me molestes",
-        "otra vez con lo mismo",
+        "ya vale",
+        "deja de fastidiar",
+        "deja de tocarme las narices",
+        "me tienes frito",
+        "vaya coñazo",
+        "no me toques las narices",
         "que pesado eres",
-        "me colmaste la paciencia"
+        "otra vez con lo mismo",
+        "has colmado mi paciencia"
       ],
       "stems": [
         "irrit",
@@ -639,7 +659,9 @@
         "colmad",
         "enojo",
         "pesadez",
-        "enfad"
+        "enfad",
+        "chinchar",
+        "coñaz"
       ]
     },
     {
@@ -651,10 +673,10 @@
         "tengo ganas de llorar",
         "me duele el alma",
         "por que a mi",
-        "todo se termino",
+        "todo se ha acabado",
         "estoy completamente solo",
         "lloro por ti",
-        "me partio el corazon"
+        "me has roto el corazon"
       ],
       "stems": [
         "trist",
@@ -679,11 +701,13 @@
       "phrases": [
         "que gran noticia",
         "estoy tan feliz",
-        "es maravilloso",
+        "es fantastico",
         "que alegria",
         "el mejor dia de mi vida",
         "sonrie conmigo",
-        "vamos a festejar"
+        "vamos a celebrarlo",
+        "que pasada",
+        "que guay"
       ],
       "stems": [
         "alegr",
@@ -696,7 +720,9 @@
         "fabulos",
         "entusiasm",
         "emocionad",
-        "risas"
+        "risas",
+        "guay",
+        "chul"
       ]
     },
     {
@@ -706,12 +732,14 @@
       "weight": 1.1,
       "phrases": [
         "no me lo esperaba",
-        "increible pero cierto",
+        "no me lo creo",
+        "madre mia",
+        "ostras",
         "que sorpresa",
-        "dios mio",
         "no puede ser verdad",
-        "impresionante giro",
-        "jamas imagine esto"
+        "menudo giro",
+        "jamas imagine esto",
+        "que fuerte"
       ],
       "stems": [
         "sorpres",
@@ -723,7 +751,9 @@
         "fascinad",
         "alucin",
         "inesperad",
-        "estupefact"
+        "estupefact",
+        "ostra",
+        "flip"
       ]
     },
     {
@@ -733,12 +763,14 @@
       "weight": 1.2,
       "phrases": [
         "esperaba mas de ti",
-        "me fallaste",
-        "que decepcion tan grande",
-        "fue una ilusion",
-        "rompiste mi confianza",
+        "me has fallado",
+        "menuda decepcion",
+        "que chasco",
+        "menudo chasco",
+        "fue un espejismo",
+        "has roto mi confianza",
         "todo fue en vano",
-        "no valio la pena"
+        "no ha valido la pena"
       ],
       "stems": [
         "decepcion",
@@ -749,7 +781,8 @@
         "frustrad",
         "traicion",
         "desesperanz",
-        "derrotad"
+        "derrotad",
+        "chasc"
       ]
     },
     {
@@ -758,13 +791,13 @@
       "group": "Ilusion",
       "weight": 1.1,
       "phrases": [
-        "manana sera mejor",
+        "manana sera otro dia",
         "no pierdo la esperanza",
         "llegara nuestro momento",
         "una luz en la oscuridad",
         "aun hay tiempo",
         "un nuevo amanecer",
-        "todo mejorara"
+        "todo ira a mejor"
       ],
       "stems": [
         "esperanz",
@@ -785,12 +818,13 @@
       "group": "Afecto",
       "weight": 1.1,
       "phrases": [
-        "tan lindo",
+        "que mono",
+        "que monada",
+        "que majo",
         "eres adorable",
         "mi pequeno tesoro",
         "que tierno eres",
-        "quiero abrazarte",
-        "me derrito de amor",
+        "te como a besos",
         "puro carino"
       ],
       "stems": [
@@ -803,7 +837,8 @@
         "dulzur",
         "bebe",
         "angel",
-        "mimos"
+        "mimos",
+        "monad"
       ]
     },
     {
@@ -814,10 +849,10 @@
       "phrases": [
         "por que el y yo no",
         "no se lo merece",
-        "siempre le dan todo",
-        "ojala le vaya mal",
+        "siempre le cae todo del cielo",
+        "ojala le salga mal",
         "tanta suerte no es normal",
-        "yo debi tener eso"
+        "yo deberia tener eso"
       ],
       "stems": [
         "envidi",
@@ -837,12 +872,14 @@
       "group": "Bochorno",
       "weight": 1.1,
       "phrases": [
-        "que verguenza",
-        "tragarme la tierra",
-        "me puse rojo",
+        "tierra tragame",
+        "tragame tierra",
+        "menudo corte",
+        "que corte",
+        "me mori de verguenza",
         "que bochorno",
         "no debi decir eso",
-        "que pena con todos",
+        "que verguenza ajena",
         "desearia desaparecer"
       ],
       "stems": [
@@ -854,21 +891,21 @@
         "timid",
         "turbad",
         "sonroj",
-        "pena"
+        "corte"
       ]
     },
     {
       "name": "Culpa",
       "emoji": "🙇",
-      "group": "Remordimiento",
+      "group": "Remorse",
       "weight": 1.2,
       "phrases": [
-        "todo fue mi culpa",
+        "todo ha sido culpa mia",
         "perdoname por favor",
-        "no debi hacerlo",
+        "no debi haberlo hecho",
         "me arrepiento tanto",
-        "cargue con este peso",
-        "lo lamento en el alma"
+        "cargare con esto",
+        "lo siento en el alma"
       ],
       "stems": [
         "culpa",
@@ -890,11 +927,11 @@
       "weight": 1.1,
       "phrases": [
         "muchas gracias",
-        "te agradezco de corazon",
+        "te lo agradezco de corazon",
         "eternamente agradecido",
-        "no se como pagarte",
+        "no se como agradecertelo",
         "gracias por estar ahi",
-        "mi eterna gratitud"
+        "te debo una"
       ],
       "stems": [
         "graci",
