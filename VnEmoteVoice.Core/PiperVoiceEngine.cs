@@ -14,33 +14,34 @@ using NAudio.Wave;
 namespace VnEmoteVoice.Core
 {
     /// <summary>
-    /// Motor TTS local basado en Piper (ONNX).
-    /// Permite cargar modelos Piper externos (.onnx y .json) o integrados,
-    /// exponiéndolos de forma transparente para su síntesis.
+    /// Motor de síntesis de voz (TTS) local basado en la tecnología Piper y modelos neuronales ONNX.
+    /// Permite cargar modelos externos compuestos por dos archivos:
+    ///   1. Un archivo binario de red neuronal (.onnx).
+    ///   2. Un archivo de configuración de texto (.json) con el mapa de fonemas y parámetros de audio.
+    /// Piper convierte el texto a fonemas (sonidos elementales) y la red neuronal genera el audio.
     /// </summary>
     public sealed class PiperVoiceEngine : IDisposable
     {
-        // ─── Etiqueta visual y nombres de voz ───────────────────────────────
-        public const string VoiceLabel = " (Piper)";
+        // ─── Identificadores para la interfaz de usuario ─────────────────────
+        // Texto que se muestra en el selector de voces cuando se activa Piper externo
         public const string ExternalVoiceDisplayName = "Pipper (Externo)";
+        // Clave interna para identificar la voz externa en memoria
         public const string ExternalVoiceId = "__external__";
 
-        // ─── Sub-carpeta dentro de __Models donde viven modelos Piper locales ──
-        private const string PiperSubfolder = "claude";
-
-        // ─── Separación silenciosa entre segmentos (segundos) ───────────────
+        // ─── Parámetros de procesamiento de audio ─────────────────────────────
+        // Silencio en segundos insertado entre frases para que la locución suene natural
         private const float PauseBetweenSegments = 0.10f;
 
-        // ─── Número máximo de fonemas por inferencia ─────────────────────────
+        // Límite de fonemas por cada segmento enviado al modelo de red neuronal
         private const int MaxPhonemes = 400;
 
         // ──────────────────────────────────────────────────────────────────────
-        //  Catálogo de voces Piper
+        //  Estructura de datos para la voz
         // ──────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Información de una voz Piper: id visual, idioma BCP-47,
-        /// nombre o ruta del archivo ONNX, JSON y código eSpeak.
+        /// Representa la información esencial de una voz Piper cargada:
+        /// rutas a los archivos, idioma y código fonético para eSpeak.
         /// </summary>
         public sealed record PiperVoiceInfo(
             string Id,
@@ -49,43 +50,36 @@ namespace VnEmoteVoice.Core
             string ConfigFile,
             string EspeakVoice)
         {
-            public string DisplayName =>
-                Id == ExternalVoiceId ? ExternalVoiceDisplayName : Id + VoiceLabel;
+            public string DisplayName => ExternalVoiceDisplayName;
         }
 
-        /// <summary>
-        /// Voces Piper del catálogo local (vacío por defecto ya que los modelos se cargan externamente).
-        /// </summary>
-        public static readonly IReadOnlyList<PiperVoiceInfo> Catalog = Array.Empty<PiperVoiceInfo>();
-
         // ──────────────────────────────────────────────────────────────────────
-        //  Estado interno por sesión
+        //  Variables internas y sincronización
         // ──────────────────────────────────────────────────────────────────────
 
+        // Bloqueo para evitar que dos subprocesos accedan o carguen modelos al mismo tiempo
         private readonly object _lock = new();
 
-        /// <summary>Sesiones ONNX indexadas por Id de voz.</summary>
-        private readonly Dictionary<string, InferenceSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
+        // Sesión activa del modelo ONNX (el motor de inteligencia artificial que genera el sonido)
+        private InferenceSession? _session;
 
-        /// <summary>Configuraciones indexadas por Id de voz.</summary>
-        private readonly Dictionary<string, PiperConfig> _configs = new(StringComparer.OrdinalIgnoreCase);
+        // Parámetros de configuración extraídos del archivo .json (tasa de muestreo, fonemas, etc.)
+        private PiperConfig? _config;
 
-        /// <summary>Instancias de eSpeak G2P indexadas por código de voz eSpeak.</summary>
+        // Diccionario de conversores de texto a fonemas (eSpeak G2P) organizados por código de idioma
         private readonly Dictionary<string, EspeakG2P> _espeak = new(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>Voz externa cargada dinámicamente mediante archivos ONNX y JSON.</summary>
+        // Información de la voz externa actualmente cargada en memoria
         private PiperVoiceInfo? _externalVoice;
 
-        private string? _modelsDir;
-
         // ──────────────────────────────────────────────────────────────────────
-        //  Propiedades públicas y verificación
+        //  Propiedades públicas y comprobaciones
         // ──────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Indica si hay algún modelo disponible (en catálogo local o externo cargado).
+        /// Indica si hay un modelo Piper externo cargado y listo para sintetizar voz.
         /// </summary>
-        public bool IsAvailable => _externalVoice != null || Catalog.Any(v => IsVoiceAvailable(v));
+        public bool IsAvailable => _externalVoice != null;
 
         /// <summary>
         /// Indica si ya se cargó un modelo Piper externo.
@@ -93,43 +87,37 @@ namespace VnEmoteVoice.Core
         public bool HasExternalVoice => _externalVoice != null;
 
         /// <summary>
-        /// Determina si el nombre corresponde a la opción de Piper externo.
+        /// Comprueba si el nombre seleccionado por el usuario corresponde a la voz Piper externa.
         /// </summary>
         public static bool IsExternalVoice(string voiceName) =>
             string.Equals(voiceName, ExternalVoiceDisplayName, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(voiceName, "Piper (Externo)", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Determina si una voz debe ser procesada por este motor.
+        /// Devuelve la información de la voz externa si el nombre coincide; de lo contrario devuelve null.
         /// </summary>
-        public static bool IsPiperVoice(string voiceNameWithLabel) =>
-            !string.IsNullOrEmpty(voiceNameWithLabel) &&
-            (voiceNameWithLabel.EndsWith(VoiceLabel, StringComparison.OrdinalIgnoreCase) ||
-             IsExternalVoice(voiceNameWithLabel));
-
-        /// <summary>
-        /// Busca la información de voz correspondiente al nombre proporcionado.
-        /// </summary>
-        public PiperVoiceInfo? FindVoice(string voiceNameWithLabel)
+        public PiperVoiceInfo? FindVoice(string voiceName)
         {
-            if (string.IsNullOrEmpty(voiceNameWithLabel)) return null;
+            if (string.IsNullOrEmpty(voiceName)) return null;
 
-            if (IsExternalVoice(voiceNameWithLabel))
+            if (IsExternalVoice(voiceName))
             {
                 return _externalVoice;
             }
 
-            if (!voiceNameWithLabel.EndsWith(VoiceLabel, StringComparison.OrdinalIgnoreCase))
-                return null;
-
-            string id = voiceNameWithLabel[..^VoiceLabel.Length].Trim();
-            return Catalog.FirstOrDefault(v => v.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+            return null;
         }
 
+        // ──────────────────────────────────────────────────────────────────────
+        //  Carga dinámica de modelos externos (.onnx + .json)
+        // ──────────────────────────────────────────────────────────────────────
+
         /// <summary>
-        /// Carga un modelo Piper externo a partir de sus rutas de archivo .onnx y .json.
-        /// Lee la configuración de Language y EspeakVoice directamente del JSON.
+        /// Lee los archivos .onnx (modelo neuronal) y .json (configuración de fonemas y audio),
+        /// cargando el motor en memoria para que pueda hablar inmediatamente.
         /// </summary>
+        /// <param name="onnxPath">Ruta absoluta del archivo con extensión .onnx</param>
+        /// <param name="jsonPath">Ruta absoluta del archivo con extensión .json</param>
         public void LoadExternalVoice(string onnxPath, string jsonPath)
         {
             if (!File.Exists(onnxPath))
@@ -137,47 +125,42 @@ namespace VnEmoteVoice.Core
             if (!File.Exists(jsonPath))
                 throw new FileNotFoundException($"Archivo de configuración JSON no encontrado: {jsonPath}");
 
+            // 1. Leer y analizar la configuración del modelo desde el archivo JSON
             string json = File.ReadAllText(jsonPath, Encoding.UTF8);
             var config = PiperConfig.Parse(json);
 
             lock (_lock)
             {
-                if (_sessions.TryGetValue(ExternalVoiceId, out var oldSession))
-                {
-                    oldSession.Dispose();
-                    _sessions.Remove(ExternalVoiceId);
-                }
+                // Si había una sesión ONNX abierta anteriormente, la liberamos de memoria RAM
+                _session?.Dispose();
 
-                var session = new InferenceSession(onnxPath);
-                _sessions[ExternalVoiceId] = session;
-                _configs[ExternalVoiceId] = config;
+                // 2. Crear una nueva sesión de inferencia de ONNX Runtime con el archivo .onnx
+                _session = new InferenceSession(onnxPath);
+                _config = config;
 
+                // 3. Registrar la información de la voz
                 _externalVoice = new PiperVoiceInfo(
-                    Id: ExternalVoiceId, // Ejemplo: "claude"
-                    Language: config.Language, // Ejemplo: "es-MX"
-                    OnnxFile: onnxPath, // Ejemplo: "es_MX-claude-high.onnx"
-                    ConfigFile: jsonPath, // Ejemplo: "es_es_MX_claude_high_es_MX-claude-high.onnx.json"
-                    EspeakVoice: config.EspeakVoice // Ejemplo: "es"
+                    Id: ExternalVoiceId,
+                    Language: config.Language,
+                    OnnxFile: onnxPath,
+                    ConfigFile: jsonPath,
+                    EspeakVoice: config.EspeakVoice
                 );
             }
         }
 
-        /// <summary>Coincide por idioma exacto o por sub-etiqueta primaria (es-MX coincide con es-ES).</summary>
-        public static bool MatchesLanguage(PiperVoiceInfo voice, string language)
-        {
-            if (string.IsNullOrEmpty(language)) return true;
-            return PrimaryTag(voice.Language).Equals(PrimaryTag(language), StringComparison.OrdinalIgnoreCase);
-        }
-
         // ──────────────────────────────────────────────────────────────────────
-        //  Punto de entrada: síntesis
+        //  Síntesis de voz (Generación de audio a partir de texto)
         // ──────────────────────────────────────────────────────────────────────
 
-        /// <param name="speed">
-        ///   Factor de velocidad: 0.5 (lento) – 2.0 (rápido). 1.0 = normal.
-        ///   Internamente se aplica como <c>length_scale = base / speed</c>.
-        /// </param>
-        /// <param name="volume">0.0 – 1.0, multiplicador lineal de amplitud.</param>
+        /// <summary>
+        /// Convierte el texto en audio y lo guarda en un archivo WAV de forma asíncrona (en segundo plano).
+        /// </summary>
+        /// <param name="text">Texto a pronunciar.</param>
+        /// <param name="outputPath">Ruta donde se guardará el archivo de audio (.wav).</param>
+        /// <param name="voice">Información de la voz Piper a utilizar.</param>
+        /// <param name="speed">Velocidad del habla (0.5 = lento, 1.0 = normal, 2.0 = rápido).</param>
+        /// <param name="volume">Volumen del audio (0.0 a 1.0).</param>
         public Task SynthesizeToWavAsync(
             string text,
             string outputPath,
@@ -186,6 +169,12 @@ namespace VnEmoteVoice.Core
             float volume)
             => Task.Run(() => SynthesizeToWav(text, outputPath, voice, speed, volume));
 
+        /// <summary>
+        /// Lógica de síntesis paso a paso:
+        /// 1. Convierte el texto en fonemas y números (IDs).
+        /// 2. Ejecuta el modelo neuronal para generar las ondas sonoras.
+        /// 3. Escribe las ondas en un archivo de formato WAV.
+        /// </summary>
         private void SynthesizeToWav(
             string text,
             string outputPath,
@@ -193,32 +182,48 @@ namespace VnEmoteVoice.Core
             float speed,
             float volume)
         {
-            var session = GetSession(voice);
-            var config = GetConfig(voice);
+            InferenceSession session;
+            PiperConfig config;
 
+            lock (_lock)
+            {
+                session = _session ?? throw new InvalidOperationException("No se ha inicializado el modelo ONNX de Piper.");
+                config = _config ?? throw new InvalidOperationException("No se ha cargado la configuración JSON de Piper.");
+            }
+
+            // Asegurar que la velocidad y el volumen estén dentro de límites seguros
             speed = Math.Clamp(speed, 0.5f, 2.0f);
             volume = Math.Clamp(volume, 0.0f, 1.0f);
 
             var samples = new List<float>();
 
+            // Dividir el texto en fonemas procesables y enviarlos al modelo
             foreach (var segment in Tokenize(text, voice.EspeakVoice, config))
             {
+                // Inferencia: la red neuronal calcula las muestras de sonido para este segmento
                 var result = Infer(session, config, segment, speed);
                 samples.AddRange(result);
-                // Pequeña pausa entre segmentos
+
+                // Insertar un breve silencio entre frases para mayor naturalidad
                 samples.AddRange(new float[(int)(config.SampleRate * PauseBetweenSegments)]);
             }
 
-            // Escribir WAV final
+            // Guardar todas las muestras calculadas en un archivo de audio WAV de 16 bits y 1 canal (mono)
             using var writer = new WaveFileWriter(outputPath, new WaveFormat(config.SampleRate, 16, 1));
             foreach (var s in samples)
+            {
+                // Multiplicar por el volumen seleccionado y limitar entre -1.0 y 1.0 para evitar distorsión
                 writer.WriteSample(Math.Clamp(s * volume, -1f, 1f));
+            }
         }
 
         // ──────────────────────────────────────────────────────────────────────
-        //  Inferencia ONNX (arquitectura Piper / VITS)
+        //  Inferencia en red neuronal (ONNX Runtime)
         // ──────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Pasa la secuencia de fonemas a la red neuronal ONNX y devuelve las muestras de audio generadas.
+        /// </summary>
         private static float[] Infer(
             InferenceSession session,
             PiperConfig config,
@@ -227,22 +232,26 @@ namespace VnEmoteVoice.Core
         {
             int length = phonemeIds.Length;
 
-            // input: [1, length]
+            // 1. Tensor de entrada con la secuencia de IDs de fonemas: dimensión [1, longitud]
             var inputTensor = new DenseTensor<long>(new[] { 1, length });
             for (int i = 0; i < length; i++)
                 inputTensor[0, i] = phonemeIds[i];
 
-            // input_lengths: [1]
+            // 2. Tensor con la cantidad de fonemas en la secuencia
             var lengthsTensor = new DenseTensor<long>(new[] { 1 });
             lengthsTensor[0] = length;
 
-            // scales: [3] — noise_scale, length_scale (ajustado por speed), noise_w
+            // 3. Tensor de escalas que controlan la velocidad y la entonación:
+            //    - noise_scale: variabilidad del tono/expresividad.
+            //    - length_scale: duración de los fonemas (inversamente proporcional a la velocidad).
+            //    - noise_w: variabilidad de la duración de cada sonido.
             float lengthScale = config.LengthScale / speed;
             var scalesTensor = new DenseTensor<float>(new[] { 3 });
             scalesTensor[0] = config.NoiseScale;
             scalesTensor[1] = lengthScale;
             scalesTensor[2] = config.NoiseW;
 
+            // Ensamblar los parámetros de entrada requeridos por el modelo Piper VITS
             var inputs = new List<NamedOnnxValue>
             {
                 NamedOnnxValue.CreateFromTensor("input",          inputTensor),
@@ -250,6 +259,7 @@ namespace VnEmoteVoice.Core
                 NamedOnnxValue.CreateFromTensor("scales",         scalesTensor),
             };
 
+            // Ejecutar la inferencia en el modelo de forma sincronizada
             lock (session)
             {
                 using var results = session.Run(inputs);
@@ -258,12 +268,17 @@ namespace VnEmoteVoice.Core
         }
 
         // ──────────────────────────────────────────────────────────────────────
-        //  Texto → segmentos de IDs de fonemas
+        //  Conversión de texto a fonemas (G2P: Grapheme-to-Phoneme)
         // ──────────────────────────────────────────────────────────────────────
 
+        // Expresión regular para separar texto por signos de puntuación (. ! ? ; : salto de línea)
         private static readonly Regex SentenceSplit =
             new(@"(?<=[.!?;:\n])\s*", RegexOptions.Compiled);
 
+        /// <summary>
+        /// Convierte una cadena de texto en listas de identificadores numéricos de fonemas,
+        /// dividiéndola por oraciones y limitando el tamaño de cada segmento.
+        /// </summary>
         private IEnumerable<long[]> Tokenize(
             string text,
             string espeakVoice,
@@ -273,11 +288,14 @@ namespace VnEmoteVoice.Core
 
             foreach (var line in text.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
+                // Convertir la oración escrita en caracteres fonéticos (alfabeto fonético internacional)
                 string phonemes = Phonemize(line.Trim(), espeakVoice);
                 if (string.IsNullOrEmpty(phonemes)) continue;
 
+                // Si la oración es muy larga, dividirla en trozos más pequeños
                 foreach (var segment in SplitIntoSegments(phonemes))
                 {
+                    // Traducir los caracteres fonéticos a números mediante el mapa de la voz
                     var ids = PhonemeIdsFromString(segment, config.PhonemeIdMap);
                     if (ids.Length > 0)
                         yield return ids;
@@ -285,12 +303,17 @@ namespace VnEmoteVoice.Core
             }
         }
 
+        /// <summary>
+        /// Asocia cada carácter fonético con su identificador numérico correspondiente
+        /// según el diccionario provisto en el archivo .json del modelo.
+        /// </summary>
         private static long[] PhonemeIdsFromString(
             string phonemes,
             IReadOnlyDictionary<string, long[]> phonemeIdMap)
         {
             var ids = new List<long>();
 
+            // Símbolo especial de inicio de frase (^)
             if (phonemeIdMap.TryGetValue("^", out var start))
                 ids.AddRange(start);
 
@@ -301,17 +324,23 @@ namespace VnEmoteVoice.Core
                 {
                     ids.AddRange(mapped);
 
+                    // Separador entre fonemas (espacio)
                     if (phonemeIdMap.TryGetValue(" ", out var sep))
                         ids.AddRange(sep);
                 }
             }
 
+            // Símbolo especial de fin de frase ($)
             if (phonemeIdMap.TryGetValue("$", out var end))
                 ids.AddRange(end);
 
             return ids.ToArray();
         }
 
+        /// <summary>
+        /// Utiliza la biblioteca eSpeak para traducir texto escrito al alfabeto fonético.
+        /// Si una variante de idioma no está disponible, utiliza el idioma base (ej: "es" para español).
+        /// </summary>
         private string Phonemize(string text, string espeakVoice)
         {
             if (string.IsNullOrWhiteSpace(text)) return "";
@@ -325,7 +354,7 @@ namespace VnEmoteVoice.Core
                     }
                     catch
                     {
-                        // Fallback al tag primario si la variante regional no está soportada directamente
+                        // Si la variante regional falla (ej: es-MX), intentar con el idioma base ("es")
                         string primary = PrimaryTag(espeakVoice);
                         if (!string.Equals(primary, espeakVoice, StringComparison.OrdinalIgnoreCase))
                         {
@@ -343,6 +372,9 @@ namespace VnEmoteVoice.Core
             }
         }
 
+        /// <summary>
+        /// Divide cadenas de fonemas muy extensas en fragmentos de tamaño máximo para no sobrecargar el modelo.
+        /// </summary>
         private static IEnumerable<string> SplitIntoSegments(string phonemes)
         {
             var sb = new StringBuilder();
@@ -373,6 +405,9 @@ namespace VnEmoteVoice.Core
             if (sb.Length > 0) yield return sb.ToString();
         }
 
+        /// <summary>
+        /// Limpia caracteres especiales o símbolos incompatibles antes de enviar el texto al fonetizador.
+        /// </summary>
         private static string NormalizeText(string text)
         {
             text = text.Replace("\r\n", "\n")
@@ -383,128 +418,61 @@ namespace VnEmoteVoice.Core
             return Regex.Replace(text, @"[ \t]{2,}", " ").Trim();
         }
 
-        // ──────────────────────────────────────────────────────────────────────
-        //  Carga de modelos y configuración
-        // ──────────────────────────────────────────────────────────────────────
-
-        private bool IsVoiceAvailable(PiperVoiceInfo voice)
-        {
-            if (File.Exists(voice.OnnxFile) && File.Exists(voice.ConfigFile))
-                return true;
-
-            string? dir = FindModelsDir();
-            if (dir == null) return false;
-            return File.Exists(Path.Combine(dir, PiperSubfolder, voice.OnnxFile)) &&
-                   File.Exists(Path.Combine(dir, PiperSubfolder, voice.ConfigFile));
-        }
-
-        private string? FindModelsDir()
-        {
-            if (_modelsDir != null) return _modelsDir;
-
-            var dir = new DirectoryInfo(AppContext.BaseDirectory);
-            while (dir != null)
-            {
-                string candidate = Path.Combine(dir.FullName, "__Models");
-                if (Directory.Exists(candidate))
-                    return _modelsDir = candidate;
-                dir = dir.Parent;
-            }
-            return null;
-        }
-
-        private InferenceSession GetSession(PiperVoiceInfo voice)
-        {
-            lock (_lock)
-            {
-                if (_sessions.TryGetValue(voice.Id, out var cached)) return cached;
-
-                if (File.Exists(voice.OnnxFile))
-                {
-                    var session = new InferenceSession(voice.OnnxFile);
-                    _sessions[voice.Id] = session;
-                    return session;
-                }
-
-                string dir = FindModelsDir()
-                    ?? throw new FileNotFoundException(
-                        $"No se encontró la carpeta __Models para cargar el modelo Piper '{voice.Id}'.");
-
-                string onnxPath = Path.Combine(dir, PiperSubfolder, voice.OnnxFile);
-                if (!File.Exists(onnxPath))
-                    throw new FileNotFoundException($"Modelo Piper no encontrado: {onnxPath}");
-
-                var s = new InferenceSession(onnxPath);
-                _sessions[voice.Id] = s;
-                return s;
-            }
-        }
-
-        private PiperConfig GetConfig(PiperVoiceInfo voice)
-        {
-            lock (_lock)
-            {
-                if (_configs.TryGetValue(voice.Id, out var cached)) return cached;
-
-                if (File.Exists(voice.ConfigFile))
-                {
-                    string jsonContent = File.ReadAllText(voice.ConfigFile, Encoding.UTF8);
-                    var parsed = PiperConfig.Parse(jsonContent);
-                    _configs[voice.Id] = parsed;
-                    return parsed;
-                }
-
-                string dir = FindModelsDir()
-                    ?? throw new FileNotFoundException(
-                        $"No se encontró la carpeta __Models para cargar la configuración Piper '{voice.Id}'.");
-
-                string jsonPath = Path.Combine(dir, PiperSubfolder, voice.ConfigFile);
-                if (!File.Exists(jsonPath))
-                    throw new FileNotFoundException($"Configuración Piper no encontrada: {jsonPath}");
-
-                string json = File.ReadAllText(jsonPath, Encoding.UTF8);
-                var config = PiperConfig.Parse(json);
-                _configs[voice.Id] = config;
-                return config;
-            }
-        }
-
+        /// <summary>
+        /// Extrae la parte principal de una etiqueta de idioma (ej: "es" a partir de "es-MX").
+        /// </summary>
         private static string PrimaryTag(string lang)
         {
             int i = lang.IndexOf('-');
             return i >= 0 ? lang[..i] : lang;
         }
 
+        /// <summary>
+        /// Libera los recursos de red neuronal retenidos en memoria al cerrar la aplicación.
+        /// </summary>
         public void Dispose()
         {
             lock (_lock)
             {
-                foreach (var s in _sessions.Values) s.Dispose();
-                _sessions.Clear();
+                _session?.Dispose();
+                _session = null;
+                _config = null;
+                _externalVoice = null;
             }
         }
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    //  Configuración Piper leída del archivo .onnx.json
+    //  Estructura de configuración leída desde el archivo .json del modelo
     // ══════════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Almacena los metadatos y configuraciones técnicas definidos en el archivo JSON
+    /// que acompaña al modelo ONNX de Piper (frecuencia de muestreo, fonemas, etc.).
+    /// </summary>
     internal sealed class PiperConfig
     {
+        // Frecuencia de muestreo de audio en Hertz (por defecto 22050 Hz)
         public int SampleRate { get; private set; } = 22050;
 
+        // Factores de variabilidad y entonación acústica de la red neuronal
         public float NoiseScale { get; private set; } = 0.667f;
         public float LengthScale { get; private set; } = 1.0f;
         public float NoiseW { get; private set; } = 0.8f;
 
+        // Identificador del idioma del modelo y la voz fonetizadora correspondiente
         public string Language { get; private set; } = "es-ES";
         public string EspeakVoice { get; private set; } = "es";
 
+        // Mapeo entre símbolos fonéticos y sus números de identificación para la red neuronal
         public IReadOnlyDictionary<string, long[]> PhonemeIdMap { get; private set; }
             = new Dictionary<string, long[]>();
 
         private PiperConfig() { }
 
+        /// <summary>
+        /// Lee e interpreta el texto JSON del modelo Piper para extraer todos los parámetros necesarios.
+        /// </summary>
         public static PiperConfig Parse(string json)
         {
             var cfg = new PiperConfig();
@@ -512,12 +480,12 @@ namespace VnEmoteVoice.Core
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
-            // audio.sample_rate
+            // 1. Frecuencia de muestreo (audio.sample_rate)
             if (root.TryGetProperty("audio", out var audio) &&
                 audio.TryGetProperty("sample_rate", out var sr))
                 cfg.SampleRate = sr.GetInt32();
 
-            // inference: noise_scale, length_scale, noise_w
+            // 2. Parámetros de inferencia (noise_scale, length_scale, noise_w)
             if (root.TryGetProperty("inference", out var inf))
             {
                 if (inf.TryGetProperty("noise_scale", out var ns)) cfg.NoiseScale = ns.GetSingle();
@@ -525,7 +493,7 @@ namespace VnEmoteVoice.Core
                 if (inf.TryGetProperty("noise_w", out var nw)) cfg.NoiseW = nw.GetSingle();
             }
 
-            // espeak.voice
+            // 3. Voz de eSpeak configurada (espeak.voice)
             if (root.TryGetProperty("espeak", out var espeak) &&
                 espeak.TryGetProperty("voice", out var ev) &&
                 !string.IsNullOrWhiteSpace(ev.GetString()))
@@ -533,7 +501,7 @@ namespace VnEmoteVoice.Core
                 cfg.EspeakVoice = ev.GetString()!;
             }
 
-            // language: { "code": "es_MX" } o "es_MX"
+            // 4. Idioma declarado (language.code o texto directo)
             if (root.TryGetProperty("language", out var langProp))
             {
                 if (langProp.ValueKind == JsonValueKind.Object &&
@@ -549,7 +517,7 @@ namespace VnEmoteVoice.Core
                 }
             }
 
-            // Fallback de lenguaje / espeak si uno de los dos no viene explícito
+            // Si falta alguno de los datos de idioma, inferir de forma segura
             if (string.IsNullOrWhiteSpace(cfg.Language) && !string.IsNullOrWhiteSpace(cfg.EspeakVoice))
             {
                 cfg.Language = cfg.EspeakVoice.Replace('_', '-');
@@ -564,7 +532,7 @@ namespace VnEmoteVoice.Core
                 cfg.EspeakVoice = "es";
             }
 
-            // phoneme_id_map
+            // 5. Tabla de correspondencia fonema -> IDs numéricos
             if (root.TryGetProperty("phoneme_id_map", out var pim))
             {
                 var map = new Dictionary<string, long[]>(StringComparer.Ordinal);

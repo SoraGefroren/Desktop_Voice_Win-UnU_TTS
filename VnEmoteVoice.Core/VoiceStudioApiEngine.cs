@@ -11,97 +11,110 @@ using System.Threading.Tasks;
 namespace VnEmoteVoice.Core
 {
     /// <summary>
-    /// Configuración de parámetros avanzados de síntesis de VoiceStudio.
-    /// Homologados exactamente con la interfaz y motor de VoiceStudio (OmniVoice).
+    /// Configuración de Parámetros Acústicos para VoiceStudio (OmniVoice).
+    /// 
+    /// ¿Qué es esto?
+    /// Son los ajustes de calidad y estilo para el generador de voz VoiceStudio:
+    /// Permiten controlar desde la fidelidad al personaje hasta el nivel de limpieza del sonido.
     /// </summary>
     public sealed class VoiceStudioSettings
     {
-        /// <summary>Influencia de la indicación (guidance_scale). Predeterminado: 2.0</summary>
+        // Controla qué tan fiel debe ser la voz al personaje original (2.0 es el valor recomendado)
         public float GuidanceScale { get; set; } = 2.0f;
 
-        /// <summary>Momento del refinamiento (t_shift). Predeterminado: 0.10</summary>
+        // Momento de inicio del proceso de refinamiento del audio (0.10 por defecto)
         public float TShift { get; set; } = 0.10f;
 
-        /// <summary>Variación del orden de muestreo (position_temperature). Predeterminado: 5.0</summary>
+        // Variación en la colocación de los sonidos (5.0 por defecto)
         public float PositionTemperature { get; set; } = 5.0f;
 
-        /// <summary>Variación del sonido (class_temperature). Predeterminado: 0.0</summary>
+        // Estabilidad del tono (0.0 significa máxima estabilidad y consistencia)
         public float ClassTemperature { get; set; } = 0.0f;
 
-        /// <summary>Equilibrio entre grueso y fino (layer_penalty_factor). Predeterminado: 5.0</summary>
+        // Equilibrio entre sonido grueso y fino (5.0 por defecto)
         public float LayerPenaltyFactor { get; set; } = 5.0f;
 
-        /// <summary>Refinamiento de voz / pasos de difusión (num_step). Predeterminado: 16</summary>
+        // Cantidad de pasos para limpiar y formar la voz (16 pasos es el balance ideal entre rapidez y calidad)
         public int NumStep { get; set; } = 16;
 
-        /// <summary>Limpiar ruido de referencia (denoise). Predeterminado: true</summary>
+        // Activa la eliminación de ruidos de fondo en la voz de origen
         public bool Denoise { get; set; } = true;
 
-        /// <summary>Pulir el audio generado (postprocess_output). Predeterminado: true</summary>
+        // Pule el audio final para que suene más suave
         public bool PostprocessOutput { get; set; } = true;
 
-        /// <summary>Preprocesar audio de referencia (preprocess_prompt). Predeterminado: true</summary>
+        // Normaliza el audio de prueba antes de generar la voz
         public bool PreprocessPrompt { get; set; } = true;
 
-        /// <summary>Equilibrar volumen / masterización (broadcast effect preset). Predeterminado: true</summary>
+        // Aplica un efecto para que el volumen suene parejo y profesional como en la radio
         public bool BalanceVolume { get; set; } = true;
 
-        /// <summary>Preset de efectos DSP ("broadcast" para masterizado equilibrado, "none" para crudo)</summary>
+        // Modo de efecto de sonido ("broadcast" para radio o "none" para audio sin procesar)
         public string EffectPreset => BalanceVolume ? "broadcast" : "none";
 
-        /// <summary>Profundidad de bits de audio PCM ("16", "24" o "32"). Predeterminado: "16"</summary>
+        // Calidad de bits del archivo de audio (16 bits es la calidad estándar de CD)
         public string WavBits { get; set; } = "16";
 
-        /// <summary>Idioma de síntesis (ej: "Spanish", "English", "Japanese"). Predeterminado: "Spanish"</summary>
+        // Idioma en el que hablará la voz (por defecto: "Spanish")
         public string Language { get; set; } = "Spanish";
     }
 
     /// <summary>
-    /// Motor cliente para conectarse con la API de VoiceStudio (OmniVoice).
-    /// Permite descubrir perfiles/voces disponibles y sintetizar texto a archivo WAV
-    /// con los mismos parámetros acústicos y de refinamiento que utiliza la interfaz oficial de VoiceStudio.
+    /// Conector con la API externa de VoiceStudio (OmniVoice).
+    /// 
+    /// ¿Qué hace esta clase?
+    /// Se comunica a través de la red local con el programa VoiceStudio:
+    /// 1. Pregunta qué voces o personajes tiene disponibles.
+    /// 2. Le envía el texto que queremos escuchar.
+    /// 3. Recibe el archivo de audio (.wav) ya generado listo para reproducirse.
     /// </summary>
     public sealed class VoiceStudioApiEngine : IDisposable
     {
+        // Nombre descriptivo con el que aparece esta opción en la pantalla
         public const string ExternalVoiceDisplayName = "VoiceStudio Api (Externo)";
 
+        // Cliente para enviar y recibir datos por la red
         private readonly HttpClient _httpClient;
+
+        // Dirección web donde está funcionando VoiceStudio (por defecto en tu propia computadora: http://localhost:3902)
         private string _baseUrl = "http://localhost:3902";
 
+        // Identificador y nombre del personaje de voz seleccionado
         private string _selectedProfileId = string.Empty;
         private string _selectedProfileName = string.Empty;
 
-        // Diccionario nombre visible → id de perfil
-        private Dictionary<string, string> _profileMap = new();
+        // Diccionario para traducir el nombre visible de la voz a su código interno
+        private Dictionary<string, string> _profileMap = new(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>Parámetros avanzados de síntesis homologados con VoiceStudio</summary>
+        // Ajustes detallados de calidad acústica
         public VoiceStudioSettings Settings { get; } = new VoiceStudioSettings();
 
         public VoiceStudioApiEngine(HttpClient? httpClient = null)
         {
             _httpClient = httpClient ?? new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(300)
+                Timeout = TimeSpan.FromSeconds(300) // Espera máxima de 5 minutos para textos largos
             };
         }
 
+        // Dirección del servidor (limpiando barras sobrantes al final)
         public string BaseUrl
         {
             get => _baseUrl;
             set => _baseUrl = (value ?? string.Empty).Trim().TrimEnd('/');
         }
 
-        public string SelectedProfileName => _selectedProfileName;
-        public string SelectedProfileId => _selectedProfileId;
-
+        // Revisa si ya tenemos una dirección web y un personaje seleccionado
         public bool IsConfigured =>
             !string.IsNullOrWhiteSpace(_baseUrl) &&
             !string.IsNullOrWhiteSpace(_selectedProfileId);
 
+        // Comprueba si el nombre de una voz corresponde a este motor externo
         public static bool IsVoiceStudioApiVoice(string? voiceName) =>
             !string.IsNullOrEmpty(voiceName) &&
             string.Equals(voiceName, ExternalVoiceDisplayName, StringComparison.OrdinalIgnoreCase);
 
+        // Guarda la dirección web y el personaje de voz elegido
         public void SetConfig(string baseUrl, string profileName)
         {
             BaseUrl = baseUrl;
@@ -114,15 +127,15 @@ namespace VnEmoteVoice.Core
         }
 
         /// <summary>
-        /// Consulta la API de VoiceStudio para obtener los perfiles o voces disponibles.
+        /// Conecta con VoiceStudio y obtiene la lista de todos los personajes o voces disponibles.
         /// </summary>
         public async Task<List<string>> FetchProfilesAsync(string? baseUrl = null, CancellationToken cancellationToken = default)
         {
             string url = string.IsNullOrWhiteSpace(baseUrl) ? BaseUrl : baseUrl.Trim().TrimEnd('/');
             if (string.IsNullOrWhiteSpace(url))
-                throw new ArgumentException("La URL del API de VoiceStudio no puede estar vacía.");
+                throw new ArgumentException("La dirección web (URL) de VoiceStudio no puede estar vacía.");
 
-            // Rutas para descubrir perfiles tanto en el frontend web (3902) como en el backend directo (3900)
+            // Rutas habituales donde VoiceStudio publica sus listas de voces
             string[] probePaths = { "/api/profiles", "/profiles", "/api/voices", "/voices" };
             Exception? lastEx = null;
 
@@ -152,28 +165,25 @@ namespace VnEmoteVoice.Core
             }
 
             if (lastEx != null)
-                throw new HttpRequestException($"No se pudo conectar con el servidor VoiceStudio en '{url}': {lastEx.Message}", lastEx);
+                throw new HttpRequestException($"No se pudo conectar con VoiceStudio en '{url}': {lastEx.Message}", lastEx);
 
-            throw new HttpRequestException($"El servidor en '{url}' respondió, pero no devolvió ningún perfil ni lista de voces válida.");
+            throw new HttpRequestException($"El servidor en '{url}' respondió, pero no devolvió ninguna voz válida.");
         }
 
         /// <summary>
-        /// Sintetiza texto a audio WAV utilizando los valores y endpoints de VoiceStudio.
-        /// Intenta primero el endpoint nativo /api/generate (o /generate) con multipart/form-data
-        /// para aplicar exactamente el mismo procesado DSP, volumen equilibrado y parámetros avanzados.
-        /// En caso de contingencia, recurre a /api/v1/audio/speech.
+        /// Envía el texto a VoiceStudio para que lo convierta en un archivo de audio WAV.
+        /// (Nota: Se eliminaron los parámetros no utilizados de tono y volumen, ya que VoiceStudio
+        /// aplica su propio volumen masterizado y el tono no forma parte de su API).
         /// </summary>
         public async Task SynthesizeToWavAsync(
             string text,
             string outputPath,
             string language = "",
             float speed = 1.0f,
-            float pitch = 1.0f,
-            float volume = 1.0f,
             CancellationToken cancellationToken = default)
         {
             if (!IsConfigured)
-                throw new InvalidOperationException("VoiceStudio API no está configurado. Carga un perfil de voz antes de sintetizar.");
+                throw new InvalidOperationException("VoiceStudio no está configurado. Conéctalo y elige una voz antes de generar audio.");
 
             string resolvedLang = !string.IsNullOrWhiteSpace(language)
                 ? NormalizeLanguage(language)
@@ -181,8 +191,7 @@ namespace VnEmoteVoice.Core
 
             string cultureInvariantSpeed = speed.ToString("0.00", CultureInfo.InvariantCulture);
 
-            // ── 1. Intentar endpoint nativo de VoiceStudio (/api/generate o /generate) ──
-            // Este es el endpoint idéntico al botón "Sintetizar audio" de la UI de VoiceStudio.
+            // ─── 1. Intentar el método oficial nativo (/api/generate o /generate) ───
             string[] generateEndpoints = { "/api/generate", "/generate" };
 
             foreach (var path in generateEndpoints)
@@ -197,7 +206,7 @@ namespace VnEmoteVoice.Core
                     form.Add(new StringContent(resolvedLang), "language");
                     form.Add(new StringContent(cultureInvariantSpeed), "speed");
 
-                    // Parámetros avanzados del modelo
+                    // Parámetros de calidad acústica
                     form.Add(new StringContent(Settings.GuidanceScale.ToString("0.0", CultureInfo.InvariantCulture)), "guidance_scale");
                     form.Add(new StringContent(Settings.TShift.ToString("0.00", CultureInfo.InvariantCulture)), "t_shift");
                     form.Add(new StringContent(Settings.PositionTemperature.ToString("0.0", CultureInfo.InvariantCulture)), "position_temperature");
@@ -205,7 +214,7 @@ namespace VnEmoteVoice.Core
                     form.Add(new StringContent(Settings.LayerPenaltyFactor.ToString("0.0", CultureInfo.InvariantCulture)), "layer_penalty_factor");
                     form.Add(new StringContent(Settings.NumStep.ToString()), "num_step");
 
-                    // Controles de calidad y DSP
+                    // Controles de filtros y limpieza de sonido
                     form.Add(new StringContent(Settings.Denoise ? "true" : "false"), "denoise");
                     form.Add(new StringContent(Settings.PostprocessOutput ? "true" : "false"), "postprocess_output");
                     form.Add(new StringContent(Settings.EffectPreset), "effect_preset");
@@ -226,11 +235,11 @@ namespace VnEmoteVoice.Core
                 }
                 catch
                 {
-                    // Fallback al siguiente endpoint
+                    // Si falla esta ruta, continúa probando la siguiente
                 }
             }
 
-            // ── 2. Fallback: Endpoint OpenAI-compatible (/api/v1/audio/speech o /v1/audio/speech) ──
+            // ─── 2. Método alternativo de respaldo (/api/v1/audio/speech) ───
             string[] speechEndpoints = { "/api/v1/audio/speech", "/v1/audio/speech" };
 
             var payload = new
@@ -271,6 +280,7 @@ namespace VnEmoteVoice.Core
                     if (data.Length == 0)
                         continue;
 
+                    // Si el servidor devolvió audio codificado en Base64 dentro de un JSON, lo decodificamos
                     if (IsJsonBytes(data))
                     {
                         string jsonStr = Encoding.UTF8.GetString(data);
@@ -290,13 +300,14 @@ namespace VnEmoteVoice.Core
                 }
                 catch
                 {
-                    // Continuar al siguiente endpoint
+                    // Continuar probando
                 }
             }
 
-            throw new HttpRequestException("No se pudo sintetizar audio en VoiceStudio API. Verifica que VoiceStudio esté en ejecución.");
+            throw new HttpRequestException("No se pudo generar audio con VoiceStudio. Asegúrate de que el programa VoiceStudio esté encendido y funcionando.");
         }
 
+        // Convierte códigos cortos de idioma como "es" o "en" en nombres completos como "Spanish" o "English"
         public static string NormalizeLanguage(string lang)
         {
             if (string.IsNullOrWhiteSpace(lang)) return "Spanish";
@@ -314,6 +325,7 @@ namespace VnEmoteVoice.Core
             return lang;
         }
 
+        // Extrae los nombres de las voces desde el formato JSON recibido del servidor
         private static (List<string> names, Dictionary<string, string> map) ParseProfilesFromJson(string json)
         {
             var names = new List<string>();
@@ -397,6 +409,7 @@ namespace VnEmoteVoice.Core
             return first == '{' || first == '[';
         }
 
+        // Cierra la conexión de red al salir
         public void Dispose()
         {
             _httpClient.Dispose();

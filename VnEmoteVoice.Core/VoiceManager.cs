@@ -153,11 +153,11 @@ namespace VnEmoteVoice.Core
             // 2. Manejo de VoiceStudio API externa
             if (VoiceStudioApiEngine.IsVoiceStudioApiVoice(selectedVoiceName))
             {
-                await _voiceStudio.SynthesizeToWavAsync(text, outputPath, language, speed, pitch, volume);
+                await _voiceStudio.SynthesizeToWavAsync(text, outputPath, language, speed);
                 return outputPath;
             }
 
-            // 2. Voces Kokoro (el tono no es soportado por Kokoro)
+            // 3. Voces Kokoro (el tono no es soportado por Kokoro)
             if (_kokoro.IsAvailable)
             {
                 var kokoroVoice = _kokoro.FindVoice(selectedVoiceName);
@@ -168,15 +168,7 @@ namespace VnEmoteVoice.Core
                 }
             }
 
-            // 3. Voces Piper del catálogo local (si existieran)
-            var piperVoice = _piper.FindVoice(selectedVoiceName);
-            if (piperVoice != null)
-            {
-                await _piper.SynthesizeToWavAsync(text, outputPath, piperVoice, speed, volume);
-                return outputPath;
-            }
-
-            // 4. Voces de Windows (WinRT SpeechSynthesizer)
+            // 4. Voces nativas de Windows (WinRT SpeechSynthesizer)
             using var synthesizer = new SpeechSynthesizer();
 
             string baseName = ExtractVoiceName(selectedVoiceName);

@@ -14,25 +14,46 @@ using NAudio.Wave;
 namespace VnEmoteVoice.Core
 {
     /// <summary>
-    /// Motor TTS local basado en Kokoro (ONNX). Expone voces con formato intuitivo
-    /// "(Clave) Nombre (Kokoro)" para que <see cref="VoiceManager"/> las trate
-    /// de manera transparente junto con las voces del sistema.
+    /// Motor de síntesis de voz (TTS) local basado en la tecnología Kokoro v1.0 y ONNX Runtime.
+    /// Kokoro es una red neuronal de alta calidad que produce audio a 24,000 Hz.
+    /// Utiliza un archivo de modelo central ('kokoro-v1.0.onnx') y un paquete comprimido
+    /// con los timbres o estilos de voz ('voices-v1.0.bin').
     /// </summary>
     public sealed class KokoroVoiceEngine : IDisposable
     {
+        // ─── Constantes del motor ─────────────────────────────────────────────
+        // Etiqueta añadida a cada voz para distinguirla en la lista desplegable de la interfaz
         public const string VoiceLabel = " (Kokoro)";
+
+        // Frecuencia de muestreo estándar de Kokoro: 24 kHz (24,000 muestras de audio por segundo)
         public const int SampleRate = 24000;
+
+        // Longitud máxima de tokens procesables en una sola pasada de red neuronal
         private const int MaxTokens = 510;
+
+        // Tamaño recomendado para trocear frases largas (300 tokens)
         private const int SegmentTokens = 300;
+
+        // Nombres de los archivos físicos necesarios en la carpeta __Models
         private const string ModelFile = "kokoro-v1.0.onnx";
         private const string VoicesFile = "voices-v1.0.bin";
 
-        /// <summary>Información de una voz Kokoro, su idioma BCP-47, código G2P y nombre para mostrar.</summary>
+        // ──────────────────────────────────────────────────────────────────────
+        //  Estructura de datos para las voces de Kokoro
+        // ──────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Representa una voz específica dentro del catálogo de Kokoro.
+        /// </summary>
+        /// <param name="Id">Identificador técnico del estilo (ejemplo: 'ef_dora').</param>
+        /// <param name="Language">Código internacional del idioma (ejemplo: 'es-ES', 'en-US').</param>
+        /// <param name="G2PCode">Código del convertidor de texto a fonemas correspondiente.</param>
+        /// <param name="DisplayName">Nombre legible formateado para la lista visual.</param>
         public sealed record KokoroVoiceInfo(string Id, string Language, string G2PCode, string DisplayName)
         {
             /// <summary>
-            /// Construye una voz Kokoro formateando su nombre para mostrar como "(Clave) Nombre (Kokoro)".
-            /// Ej: "ef_dora" -> "(EF) Dora (Kokoro)"
+            /// Genera el nombre visual con formato "(Prefijo) Nombre (Kokoro)".
+            /// Por ejemplo, para 'ef_dora' genera '(EF) Dora (Kokoro)'.
             /// </summary>
             public static KokoroVoiceInfo Create(string id, string language, string g2pCode)
             {
@@ -56,12 +77,16 @@ namespace VnEmoteVoice.Core
             }
         }
 
+        // ──────────────────────────────────────────────────────────────────────
+        //  Catálogo predefinido de voces Kokoro v1.0
+        // ──────────────────────────────────────────────────────────────────────
+
         /// <summary>
-        /// Catálogo completo de voces Kokoro v1.0 extraído de VOICES.md.
+        /// Lista completa de todas las voces disponibles en Kokoro v1.0 ordenadas por idioma y acento.
         /// </summary>
         public static readonly IReadOnlyList<KokoroVoiceInfo> Catalog = new[]
         {
-            // 🇺🇸 American English (en-US) - 11F 9M
+            // 🇺🇸 Inglés Americano (en-US)
             KokoroVoiceInfo.Create("af_heart",     "en-US", "en-us"),
             KokoroVoiceInfo.Create("af_alloy",     "en-US", "en-us"),
             KokoroVoiceInfo.Create("af_aoede",     "en-US", "en-us"),
@@ -83,7 +108,7 @@ namespace VnEmoteVoice.Core
             KokoroVoiceInfo.Create("am_puck",      "en-US", "en-us"),
             KokoroVoiceInfo.Create("am_santa",     "en-US", "en-us"),
 
-            // 🇬🇧 British English (en-GB) - 4F 4M
+            // 🇬🇧 Inglés Británico (en-GB)
             KokoroVoiceInfo.Create("bf_alice",     "en-GB", "en-gb"),
             KokoroVoiceInfo.Create("bf_emma",      "en-GB", "en-gb"),
             KokoroVoiceInfo.Create("bf_isabella",  "en-GB", "en-gb"),
@@ -93,37 +118,37 @@ namespace VnEmoteVoice.Core
             KokoroVoiceInfo.Create("bm_george",    "en-GB", "en-gb"),
             KokoroVoiceInfo.Create("bm_lewis",     "en-GB", "en-gb"),
 
-            // 🇪🇸 Spanish (es-ES) - 1F 2M
+            // 🇪🇸 Español (es-ES)
             KokoroVoiceInfo.Create("ef_dora",      "es-ES", "es"),
             KokoroVoiceInfo.Create("em_alex",      "es-ES", "es"),
             KokoroVoiceInfo.Create("em_santa",     "es-ES", "es"),
 
-            // 🇫🇷 French (fr-FR) - 1F
+            // 🇫🇷 Francés (fr-FR)
             KokoroVoiceInfo.Create("ff_siwis",     "fr-FR", "fr-fr"),
 
-            // 🇮🇳 Hindi (hi-IN) - 2F 2M
+            // 🇮🇳 Hindi (hi-IN)
             KokoroVoiceInfo.Create("hf_alpha",     "hi-IN", "hi"),
             KokoroVoiceInfo.Create("hf_beta",      "hi-IN", "hi"),
             KokoroVoiceInfo.Create("hm_omega",     "hi-IN", "hi"),
             KokoroVoiceInfo.Create("hm_psi",       "hi-IN", "hi"),
 
-            // 🇮🇹 Italian (it-IT) - 1F 1M
+            // 🇮🇹 Italiano (it-IT)
             KokoroVoiceInfo.Create("if_sara",      "it-IT", "it"),
             KokoroVoiceInfo.Create("im_nicola",    "it-IT", "it"),
 
-            // 🇯🇵 Japanese (ja-JP) - 4F 1M
+            // 🇯🇵 Japonés (ja-JP)
             KokoroVoiceInfo.Create("jf_alpha",      "ja-JP", "ja"),
             KokoroVoiceInfo.Create("jf_gongitsune", "ja-JP", "ja"),
             KokoroVoiceInfo.Create("jf_nezumi",     "ja-JP", "ja"),
             KokoroVoiceInfo.Create("jf_tebukuro",   "ja-JP", "ja"),
             KokoroVoiceInfo.Create("jm_kumo",       "ja-JP", "ja"),
 
-            // 🇧🇷 Brazilian Portuguese (pt-BR) - 1F 2M
+            // 🇧🇷 Portugués de Brasil (pt-BR)
             KokoroVoiceInfo.Create("pf_dora",      "pt-BR", "pt-br"),
             KokoroVoiceInfo.Create("pm_alex",      "pt-BR", "pt-br"),
             KokoroVoiceInfo.Create("pm_santa",     "pt-BR", "pt-br"),
 
-            // 🇨🇳 Mandarin Chinese (zh-CN) - 4F 4M
+            // 🇨🇳 Chino Mandarín (zh-CN)
             KokoroVoiceInfo.Create("zf_xiaobei",   "zh-CN", "cmn"),
             KokoroVoiceInfo.Create("zf_xiaoni",    "zh-CN", "cmn"),
             KokoroVoiceInfo.Create("zf_xiaoxiao",  "zh-CN", "cmn"),
@@ -134,68 +159,63 @@ namespace VnEmoteVoice.Core
             KokoroVoiceInfo.Create("zm_yunyang",   "zh-CN", "cmn"),
         };
 
+        // Diccionario que relaciona cada símbolo fonético con su ID numérico reconocido por Kokoro
         private static readonly Dictionary<char, int> Vocab = BuildVocab();
+
+        // Expresión regular para separar el texto por signos ortográficos
         private static readonly Regex Punctuation = new(@"(?<=[;:,.!?…¿\n])\s*", RegexOptions.Compiled);
 
+        // ──────────────────────────────────────────────────────────────────────
+        //  Variables internas y caché de modelos
+        // ──────────────────────────────────────────────────────────────────────
+
         private readonly object _lock = new();
+
+        // Caché de vectores de estilo (el "timbre" de voz de cada personaje)
         private readonly Dictionary<string, float[]> _styles = new(StringComparer.OrdinalIgnoreCase);
+
+        // Caché de conversores eSpeak para idiomas adicionales
         private readonly Dictionary<string, EspeakG2P> _espeak = new();
+
+        // Motores especializados para inglés americano y británico
         private static EnglishG2P? _englishUs;
         private static EnglishG2P? _englishGb;
+
+        // Sesión activa del modelo neuronal ONNX
         private InferenceSession? _session;
+
+        // Ruta de la carpeta donde se encontraron los archivos del modelo
         private string? _modelsDir;
 
-        /// <summary>
-        /// Valida si el archivo VnEmoteVoice.Core.csproj declara los modelos
-        /// "kokoro-v1.0.onnx" y "voices-v1.0.bin".
-        /// </summary>
-        public static bool HasKokoroModelsInCsproj()
-        {
-            try
-            {
-                var dir = new DirectoryInfo(AppContext.BaseDirectory);
-                while (dir != null)
-                {
-                    string candidate1 = Path.Combine(dir.FullName, "VnEmoteVoice.Core", "VnEmoteVoice.Core.csproj");
-                    string candidate2 = Path.Combine(dir.FullName, "VnEmoteVoice.Core.csproj");
-                    string? csprojPath = File.Exists(candidate1) ? candidate1 : (File.Exists(candidate2) ? candidate2 : null);
-
-                    if (csprojPath != null)
-                    {
-                        string content = File.ReadAllText(csprojPath);
-                        bool hasOnnx = content.Contains("kokoro-v1.0.onnx", StringComparison.OrdinalIgnoreCase);
-                        bool hasBin  = content.Contains("voices-v1.0.bin", StringComparison.OrdinalIgnoreCase);
-                        return hasOnnx && hasBin;
-                    }
-                    dir = dir.Parent;
-                }
-            }
-            catch
-            {
-            }
-
-            return false;
-        }
+        // ──────────────────────────────────────────────────────────────────────
+        //  Propiedades públicas y comprobaciones de disponibilidad
+        // ──────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// True si VnEmoteVoice.Core.csproj contiene los modelos declarados Y existen físicamente en disco.
-        /// Si alguna condición no se cumple, las voces de Kokoro no estarán disponibles ni se mostrarán.
+        /// Comprueba si los archivos 'kokoro-v1.0.onnx' y 'voices-v1.0.bin' están presentes en el sistema.
+        /// Si están presentes, el motor está listo para funcionar; si faltan, las voces se ocultan.
         /// </summary>
-        public bool IsAvailable => HasKokoroModelsInCsproj() && FindModelsDir() != null;
+        public bool IsAvailable => FindModelsDir() != null;
 
+        /// <summary>
+        /// Determina si un nombre de voz pertenece a Kokoro basándose en su sufijo "(Kokoro)".
+        /// </summary>
         public static bool IsKokoroVoice(string voiceNameWithLabel) =>
             !string.IsNullOrEmpty(voiceNameWithLabel) &&
             voiceNameWithLabel.EndsWith(VoiceLabel, StringComparison.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Busca la información de una voz en el catálogo mediante su nombre visual o identificador técnico.
+        /// </summary>
         public KokoroVoiceInfo? FindVoice(string voiceNameWithLabel)
         {
             if (string.IsNullOrWhiteSpace(voiceNameWithLabel)) return null;
 
-            // 1. Coincidencia por DisplayName exacto (ej. "(EF) Dora (Kokoro)")
+            // 1. Búsqueda por nombre visual exacto (ej: "(EF) Dora (Kokoro)")
             var match = Catalog.FirstOrDefault(v => v.DisplayName.Equals(voiceNameWithLabel, StringComparison.OrdinalIgnoreCase));
             if (match != null) return match;
 
-            // 2. Coincidencia por Id con sufijo (ej. "ef_dora (Kokoro)")
+            // 2. Búsqueda por identificador con sufijo (ej: "ef_dora (Kokoro)")
             if (IsKokoroVoice(voiceNameWithLabel))
             {
                 string id = voiceNameWithLabel[..^VoiceLabel.Length].Trim();
@@ -203,11 +223,13 @@ namespace VnEmoteVoice.Core
                 if (match != null) return match;
             }
 
-            // 3. Coincidencia por Id directo (ej. "ef_dora")
+            // 3. Búsqueda por identificador directo (ej: "ef_dora")
             return Catalog.FirstOrDefault(v => v.Id.Equals(voiceNameWithLabel, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary>Coincide por idioma exacto o por subetiqueta primaria (es-MX coincide con es-ES).</summary>
+        /// <summary>
+        /// Comprueba si una voz coincide con el idioma seleccionado (ej: 'es-ES' coincide con 'es').
+        /// </summary>
         public static bool MatchesLanguage(KokoroVoiceInfo voice, string language)
         {
             if (string.IsNullOrEmpty(language)) return true;
@@ -215,17 +237,37 @@ namespace VnEmoteVoice.Core
             return PrimaryTag(voice.Language).Equals(PrimaryTag(language), StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Extrae el prefijo principal de un código de idioma (ej: "es" a partir de "es-MX").
+        /// </summary>
         private static string PrimaryTag(string lang)
         {
             int i = lang.IndexOf('-');
             return i >= 0 ? lang[..i] : lang;
         }
 
-        /// <param name="speed">0.5 a 2.0 (Kokoro no soporta valores mayores de forma fiable).</param>
-        /// <param name="volume">0.0 a 1.0, aplicado a las muestras.</param>
+        // ──────────────────────────────────────────────────────────────────────
+        //  Síntesis de voz (Texto a Audio)
+        // ──────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Genera el archivo de audio (.wav) correspondiente al texto de forma asíncrona.
+        /// </summary>
+        /// <param name="text">Texto que dirá la voz.</param>
+        /// <param name="outputPath">Ruta donde se escribirá el archivo WAV.</param>
+        /// <param name="voice">Voz seleccionada de Kokoro.</param>
+        /// <param name="speed">Velocidad de locución (0.5 a 2.0).</param>
+        /// <param name="volume">Volumen general (0.0 a 1.0).</param>
         public Task SynthesizeToWavAsync(string text, string outputPath, KokoroVoiceInfo voice, float speed, float volume)
             => Task.Run(() => SynthesizeToWav(text, outputPath, voice, speed, volume));
 
+        /// <summary>
+        /// Proceso secuencial de síntesis:
+        /// 1. Carga la red neuronal y el estilo acústico de la voz.
+        /// 2. Convierte el texto en fonemas numéricos.
+        /// 3. Ejecuta la inferencia de sonido.
+        /// 4. Graba el resultado en formato WAV a 24,000 Hz.
+        /// </summary>
         private void SynthesizeToWav(string text, string outputPath, KokoroVoiceInfo voice, float speed, float volume)
         {
             var session = GetSession();
@@ -234,13 +276,17 @@ namespace VnEmoteVoice.Core
             volume = Math.Clamp(volume, 0f, 1f);
 
             var samples = new List<float>();
+
+            // Procesar cada fragmento de texto
             foreach (var tokens in Tokenize(text, voice.G2PCode))
             {
                 samples.AddRange(Infer(session, tokens, style, speed));
-                // Pausa corta entre segmentos
+
+                // Breve silencio (120 milisegundos) entre oraciones para una pausa natural
                 samples.AddRange(new float[(int)(SampleRate * 0.12f)]);
             }
 
+            // Guardar en un archivo WAV con formato PCM a 24 kHz y 16 bits mono
             using var writer = new WaveFileWriter(outputPath, new WaveFormat(SampleRate, 16, 1));
             foreach (var s in samples)
             {
@@ -248,16 +294,23 @@ namespace VnEmoteVoice.Core
             }
         }
 
+        /// <summary>
+        /// Ejecuta el pase hacia adelante (inferencia) en el modelo ONNX de Kokoro.
+        /// </summary>
         private static float[] Infer(InferenceSession session, int[] tokens, float[,,] styles, float speed)
         {
             int count = Math.Min(tokens.Length, MaxTokens);
-            var tokenTensor = new DenseTensor<long>(new[] { 1, count + 2 }); // <pad>{texto}<pad>
+
+            // Tensor de entrada con los tokens: [1, longitud + 2] (incluye padding al inicio y fin)
+            var tokenTensor = new DenseTensor<long>(new[] { 1, count + 2 });
             for (int i = 0; i < count; i++) tokenTensor[0, i + 1] = tokens[i];
 
+            // Tensor de estilo: matriz que define la identidad acústica del hablante
             int dim = styles.GetLength(2);
             var styleTensor = new DenseTensor<float>(new[] { 1, dim });
             for (int j = 0; j < dim; j++) styleTensor[0, j] = styles[count - 1, 0, j];
 
+            // Parámetros de entrada para el modelo ONNX
             var inputs = new List<NamedOnnxValue>
             {
                 NamedOnnxValue.CreateFromTensor("tokens", tokenTensor),
@@ -272,8 +325,13 @@ namespace VnEmoteVoice.Core
             }
         }
 
-        #region Texto -> tokens
+        // ──────────────────────────────────────────────────────────────────────
+        //  Conversión de texto a fonemas y tokens numéricos
+        // ──────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Normaliza el texto, lo fonetiza y traduce los fonemas a los números requeridos por la red.
+        /// </summary>
         private IEnumerable<int[]> Tokenize(string text, string g2pCode)
         {
             foreach (var line in Normalize(text).Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -287,6 +345,9 @@ namespace VnEmoteVoice.Core
             }
         }
 
+        /// <summary>
+        /// Limpia caracteres ortográficos incompatibles y normaliza los espacios en blanco.
+        /// </summary>
         private static string Normalize(string text)
         {
             text = text.Replace("\r\n", "\n").Replace('‘', '"').Replace('’', '"').Replace("**", "*");
@@ -294,29 +355,36 @@ namespace VnEmoteVoice.Core
             return Regex.Replace(text, @"[ \t]{2,}", " ").Trim();
         }
 
+        /// <summary>
+        /// Convierte el texto escrito en caracteres fonéticos según el idioma del hablante.
+        /// </summary>
         private string Phonemize(string line, string g2pCode)
         {
             if (string.IsNullOrWhiteSpace(line)) return "";
             lock (_lock)
             {
+                // Chino Mandarín
                 if (g2pCode == "cmn")
                 {
                     ChineseG2P.EnglishPhonemizer ??= EnglishPhonemes;
                     return ChineseG2P.Phonemize(line);
                 }
 
+                // Inglés Americano
                 if (g2pCode == "en-us" || g2pCode == "a")
                 {
                     _englishUs ??= new EnglishG2P(EnglishG2P.DefaultTagger, british: false);
                     return new string(_englishUs.Phonemize(line).Phonemes.Where(Vocab.ContainsKey).ToArray());
                 }
 
+                // Inglés Británico
                 if (g2pCode == "en-gb" || g2pCode == "b")
                 {
                     _englishGb ??= new EnglishG2P(EnglishG2P.DefaultTagger, british: true);
                     return new string(_englishGb.Phonemize(line).Phonemes.Where(Vocab.ContainsKey).ToArray());
                 }
 
+                // Otros idiomas (Español, Francés, Japonés, etc.) procesados vía eSpeak
                 if (!_espeak.TryGetValue(g2pCode, out var g2p))
                 {
                     try
@@ -349,7 +417,9 @@ namespace VnEmoteVoice.Core
             return new string(_englishUs.Phonemize(text).Phonemes.Where(Vocab.ContainsKey).ToArray());
         }
 
-        /// <summary>Divide los fonemas en frases (≤ SegmentTokens) respetando la puntuación.</summary>
+        /// <summary>
+        /// Divide los fonemas en oraciones de hasta SegmentTokens caracteres respetando la puntuación.
+        /// </summary>
         private static IEnumerable<string> SplitPhonemes(string phonemes)
         {
             var sb = new StringBuilder();
@@ -386,6 +456,9 @@ namespace VnEmoteVoice.Core
             yield return s;
         }
 
+        /// <summary>
+        /// Construye el mapa numérico completo de fonemas que comprende la red neuronal de Kokoro.
+        /// </summary>
         private static Dictionary<char, int> BuildVocab()
         {
             var vocab = new Dictionary<char, int>
@@ -395,16 +468,19 @@ namespace VnEmoteVoice.Core
 
             var zh = new Dictionary<char, int>
             {
-                ['/'] = 7, ['ㄓ'] = 23, ['ㄅ'] = 30, ['ㄆ'] = 32, ['R'] = 34, ['ㄇ'] = 37, ['ㄈ'] = 38, ['ㄉ'] = 40, ['ㄊ'] = 49, ['ㄋ'] = 73, ['ㄌ'] = 74, ['ㄍ'] = 79, ['ㄎ'] = 84, ['ㄦ'] = 85, ['ㄏ'] = 88, ['ㄐ'] = 89, ['ㄑ'] = 91, ['ㄒ'] = 93, ['ㄔ'] = 94, ['ㄕ'] = 95, ['ㄗ'] = 96, ['ㄘ'] = 97, ['ㄙ'] = 98, ['月'] = 99, ['ㄚ'] = 100, ['ㄛ'] = 104, ['ㄟ'] = 105, ['ㄞ'] = 106, ['ㄟ'] = 107, ['ㄠ'] = 108, ['ㄡ'] = 109, ['ㄢ'] = 117, ['ㄣ'] = 121, ['ㄤ'] = 122, ['ㄥ'] = 124, ['ㄖ'] = 126, ['ㄧ'] = 127, ['ㄨ'] = 134, ['ㄩ'] = 137, ['ㄜ'] = 140, ['ㄭ'] = 141, ['十'] = 144, ['压'] = 145, ['言'] = 146, ['阳'] = 149, ['要'] = 150, ['阴'] = 151, ['应'] = 152, ['用'] = 153, ['又'] = 154, ['中'] = 155, ['穵'] = 159, ['外'] = 160, ['万'] = 161, ['王'] = 163, ['为'] = 165, ['文'] = 166, ['瓮'] = 167, ['我'] = 168, ['3'] = 169, ['5'] = 170, ['1'] = 171, ['2'] = 172, ['4'] = 173, ['元'] = 175, ['云'] = 176,
+                ['/'] = 7, ['ㄓ'] = 23, ['ㄅ'] = 30, ['ㄆ'] = 32, ['R'] = 34, ['ㄇ'] = 37, ['ㄈ'] = 38, ['ㄉ'] = 40, ['ㄊ'] = 49, ['ㄋ'] = 73, ['ㄌ'] = 74, ['ㄍ'] = 79, ['ㄎ'] = 84, ['ㄦ'] = 85, ['ㄏ'] = 88, ['ㄐ'] = 89, ['ㄑ'] = 91, ['ㄒ'] = 93, ['ㄔ'] = 94, ['ㄕ'] = 95, ['ㄗ'] = 96, ['ㄘ'] = 97, ['ㄙ'] = 98, ['月'] = 99, ['ㄚ'] = 100, ['ㄛ'] = 104, ['ㄟ'] = 105, ['ㄞ'] = 106, ['ㄠ'] = 108, ['ㄡ'] = 109, ['ㄢ'] = 117, ['ㄣ'] = 121, ['ㄤ'] = 122, ['ㄥ'] = 124, ['ㄖ'] = 126, ['ㄧ'] = 127, ['ㄨ'] = 134, ['ㄩ'] = 137, ['ㄜ'] = 140, ['ㄭ'] = 141, ['十'] = 144, ['压'] = 145, ['言'] = 146, ['阳'] = 149, ['要'] = 150, ['阴'] = 151, ['应'] = 152, ['用'] = 153, ['又'] = 154, ['中'] = 155, ['穵'] = 159, ['外'] = 160, ['万'] = 161, ['王'] = 163, ['为'] = 165, ['文'] = 166, ['瓮'] = 167, ['我'] = 168, ['3'] = 169, ['5'] = 170, ['1'] = 171, ['2'] = 172, ['4'] = 173, ['元'] = 175, ['云'] = 176,
             };
             foreach (var kv in zh) vocab[kv.Key] = kv.Value;
             return vocab;
         }
 
-        #endregion
+        // ──────────────────────────────────────────────────────────────────────
+        //  Carga de archivos de modelo y estilos
+        // ──────────────────────────────────────────────────────────────────────
 
-        #region Modelos y voces
-
+        /// <summary>
+        /// Localiza la carpeta '__Models' en la ruta de ejecución o en los directorios superiores del proyecto.
+        /// </summary>
         private string? FindModelsDir()
         {
             if (_modelsDir != null) return _modelsDir;
@@ -424,6 +500,9 @@ namespace VnEmoteVoice.Core
             return null;
         }
 
+        /// <summary>
+        /// Obtiene o inicializa la sesión de inferencia ONNX para el modelo Kokoro.
+        /// </summary>
         private InferenceSession GetSession()
         {
             lock (_lock)
@@ -435,6 +514,9 @@ namespace VnEmoteVoice.Core
             }
         }
 
+        /// <summary>
+        /// Extrae el archivo de estilo (.npy) de la voz solicitada desde el archivo comprimido 'voices-v1.0.bin'.
+        /// </summary>
         private float[,,] GetStyle(string voiceId)
         {
             lock (_lock)
@@ -451,6 +533,9 @@ namespace VnEmoteVoice.Core
             }
         }
 
+        /// <summary>
+        /// Reorganiza el arreglo unidimensional en una matriz tridimensional [filas, 1, 256].
+        /// </summary>
         private static float[,,] Reshape(float[] data)
         {
             const int dim = 256;
@@ -460,6 +545,9 @@ namespace VnEmoteVoice.Core
             return result;
         }
 
+        /// <summary>
+        /// Lee arreglos de números en formato NumPy (.npy) desde una secuencia de bytes.
+        /// </summary>
         private static float[] ReadNpyFloats(Stream stream)
         {
             using var ms = new MemoryStream();
@@ -483,8 +571,9 @@ namespace VnEmoteVoice.Core
             return floats;
         }
 
-        #endregion
-
+        /// <summary>
+        /// Libera de la memoria la sesión de ONNX Runtime al finalizar la aplicación.
+        /// </summary>
         public void Dispose()
         {
             _session?.Dispose();
