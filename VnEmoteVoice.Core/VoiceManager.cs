@@ -3,19 +3,25 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using NAudio.Wave;
-using Windows.Media.SpeechSynthesis;
 
 namespace VnEmoteVoice.Core
 {
-    public class VoiceManager
+    /// <summary>
+    /// Administrador central de voces y reproducción de audio.
+    /// Orquesta de forma unificada y multiplataforma:
+    ///   1. Modelos externos Piper (.onnx y .json).
+    ///   2. Modelos remotos vía VoiceStudio API (HTTP).
+    ///   3. Modelos neuronales locales Kokoro v1.0 (ONNX).
+    ///   4. Motor de voces nativas del sistema operativo anfitrión (Windows, macOS o Linux).
+    ///   5. Reproducción de audio agnóstica de la plataforma.
+    /// </summary>
+    public class VoiceManager : IDisposable
     {
-        private IWavePlayer? _waveOutDevice;
-        private AudioFileReader? _audioFileReader;
+        private readonly IAudioPlayer _audioPlayer;
+        private readonly ISystemVoiceEngine _systemVoice;
         private readonly KokoroVoiceEngine _kokoro = new();
         private readonly PiperVoiceEngine  _piper  = new();
         private readonly VoiceStudioApiEngine _voiceStudio = new();
-        public bool IsPlaying => _waveOutDevice?.PlaybackState == PlaybackState.Playing;
 
         /// <summary>Nombre de la opción de voz externa Piper expuesta.</summary>
         public const string ExternalVoiceDisplayName = PiperVoiceEngine.ExternalVoiceDisplayName;
@@ -23,31 +29,24 @@ namespace VnEmoteVoice.Core
         public const string VoiceStudioApiDisplayName = VoiceStudioApiEngine.ExternalVoiceDisplayName;
 
         /// <summary>
-        /// Obtiene el idioma y nombre de la voz predeterminada configurados en el sistema operativo (Windows).
-        /// Retorna el código BCP-47 del idioma (ej: "es-MX", "es-ES", "en-US") y el nombre de la voz de Windows.
+        /// Indica si el reproductor de sonido está activo en este momento.
         /// </summary>
-        public (string Language, string VoiceName) GetSystemDefaultLanguageAndVoice()
-        {
-            try
-            {
-                var defaultVoice = SpeechSynthesizer.DefaultVoice;
-                if (defaultVoice != null)
-                {
-                    string typeLabel = IsOnlineVoice(defaultVoice) ? " (Online)" : " (Local)";
-                    return (defaultVoice.Language, defaultVoice.DisplayName + typeLabel);
-                }
-            }
-            catch
-            {
-                // Fallback si la API de voz de WinRT no responde
-            }
+        public bool IsPlaying => _audioPlayer.IsPlaying;
 
-            string cultureLang = System.Globalization.CultureInfo.CurrentUICulture.Name;
-            return (cultureLang, string.Empty);
+        public VoiceManager(ISystemVoiceEngine? systemVoiceEngine = null, IAudioPlayer? audioPlayer = null)
+        {
+            _systemVoice = systemVoiceEngine ?? SystemVoiceEngineFactory.Create();
+            _audioPlayer = audioPlayer ?? new CrossPlatformAudioPlayer();
         }
 
         /// <summary>
-        /// Devuelve los idiomas disponibles en el sistema (voces de Windows y Kokoro).
+        /// Obtiene el idioma y nombre de la voz predeterminada configurados en el sistema operativo anfitrión.
+        /// </summary>
+        public (string Language, string VoiceName) GetSystemDefaultLanguageAndVoice()
+            => _systemVoice.GetSystemDefaultLanguageAndVoice();
+
+        /// <summary>
+        /// Devuelve los idiomas disponibles en el sistema (voces nativas del S.O. y modelos Kokoro).
         /// </summary>
         public List<string> GetAvailableLanguages()
         {
@@ -55,8 +54,7 @@ namespace VnEmoteVoice.Core
                 ? KokoroVoiceEngine.Catalog.Select(v => v.Language)
                 : Enumerable.Empty<string>();
 
-            var allLanguages = SpeechSynthesizer.AllVoices
-                .Select(v => v.Language)
+            var allLanguages = _systemVoice.GetInstalledLanguages()
                 .Concat(kokoroLanguages)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(l => l)
@@ -69,24 +67,11 @@ namespace VnEmoteVoice.Core
         }
 
         /// <summary>
-        /// Devuelve las voces disponibles para el idioma dado (voces de Windows y Kokoro).
-        /// Ya no incluye "Pipper (Externo)" en este listado, pues los modelos externos
-        /// se seleccionan desde el Selector de Modelos.
+        /// Devuelve las voces disponibles para el idioma dado (voces nativas del sistema y Kokoro).
         /// </summary>
         public List<string> GetVoicesForLanguage(string language)
         {
-            var windowsVoices = SpeechSynthesizer.AllVoices
-                .Where(v => string.IsNullOrEmpty(language) ||
-                            v.Language.Equals(language, StringComparison.OrdinalIgnoreCase) ||
-                            v.Language.StartsWith(language + "-", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(v => IsOnlineVoice(v) ? 0 : 1) // Online primero
-                .ThenBy(v => v.DisplayName)
-                .Select(v =>
-                {
-                    string typeLabel = IsOnlineVoice(v) ? " (Online)" : " (Local)";
-                    return v.DisplayName + typeLabel;
-                })
-                .ToList();
+            var systemVoices = _systemVoice.GetVoicesForLanguage(language);
 
             var kokoroVoices = _kokoro.IsAvailable
                 ? KokoroVoiceEngine.Catalog
@@ -94,7 +79,7 @@ namespace VnEmoteVoice.Core
                       .Select(v => v.DisplayName)
                 : Enumerable.Empty<string>();
 
-            return windowsVoices
+            return systemVoices
                 .Concat(kokoroVoices)
                 .ToList();
         }
@@ -133,17 +118,8 @@ namespace VnEmoteVoice.Core
         public bool HasVoiceStudioConfig => _voiceStudio.IsConfigured;
 
         /// <summary>
-        /// Heurística para detectar voces Online de Windows.
-        /// </summary>
-        private static bool IsOnlineVoice(Windows.Media.SpeechSynthesis.VoiceInformation voice)
-        {
-            return voice.Id.Contains("online", StringComparison.OrdinalIgnoreCase)
-                || voice.DisplayName.Contains("Online", StringComparison.OrdinalIgnoreCase)
-                || voice.DisplayName.Contains("Natural", StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <summary>
-        /// Extrae el nombre base de la voz eliminando el sufijo "(Online)" o "(Local)" si existe.
+        /// Extrae el nombre base de la voz eliminando sufijos descriptivos entre paréntesis
+        /// como "(Online)", "(Local)", "(macOS)", "(Linux)", etc.
         /// </summary>
         public static string ExtractVoiceName(string displayNameWithLabel)
         {
@@ -153,8 +129,7 @@ namespace VnEmoteVoice.Core
         }
 
         /// <summary>
-        /// Sintetiza texto a audio y lo guarda en <paramref name="outputPath"/>.
-        /// Gestiona la síntesis con PiperVoiceEngine cuando se indica el modelo "Pipper (Externo)".
+        /// Sintetiza texto a audio WAV en la ruta <paramref name="outputPath"/> según el motor correspondiente.
         /// </summary>
         public async Task<string> SynthesizeSpeechAsync(
             string text,
@@ -192,80 +167,58 @@ namespace VnEmoteVoice.Core
                 }
             }
 
-            // 4. Voces nativas de Windows (WinRT SpeechSynthesizer)
-            using var synthesizer = new SpeechSynthesizer();
-
-            string baseName = ExtractVoiceName(selectedVoiceName);
-
-            if (!string.IsNullOrEmpty(baseName))
-            {
-                var voice = SpeechSynthesizer.AllVoices
-                    .FirstOrDefault(v =>
-                        v.DisplayName.Equals(baseName, StringComparison.OrdinalIgnoreCase) &&
-                        (string.IsNullOrEmpty(language) || v.Language.Equals(language, StringComparison.OrdinalIgnoreCase)));
-                if (voice != null)
-                {
-                    synthesizer.Voice = voice;
-                }
-            }
-
-            synthesizer.Options.SpeakingRate = Math.Clamp(speed, 0.5, 6.0);
-            synthesizer.Options.AudioPitch = Math.Clamp(pitch, 0.0, 2.0);
-            synthesizer.Options.AudioVolume = Math.Clamp(volume, 0.0, 1.0);
-
-            string langCode = string.IsNullOrEmpty(language) ? "es-ES" : language;
-            string encodedText = System.Net.WebUtility.HtmlEncode(text);
-            string ssml =
-                $"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{langCode}'>" +
-                $"{encodedText}" +
-                "</speak>";
-
-            SpeechSynthesisStream stream = await synthesizer.SynthesizeSsmlToStreamAsync(ssml);
-
-            using (var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
-            {
-                await stream.AsStreamForRead().CopyToAsync(fileStream);
-            }
+            // 4. Voces nativas del sistema operativo (Windows, macOS o Linux)
+            await _systemVoice.SynthesizeToWavAsync(
+                text,
+                outputPath,
+                selectedVoiceName,
+                language,
+                speed,
+                pitch,
+                volume);
 
             return outputPath;
         }
 
+        /// <summary>
+        /// Inicia la reproducción del archivo de audio con el volumen especificado (0.0 a 1.0).
+        /// </summary>
         public void PlayAudio(string filePath, float volume = 1.0f)
-        {
-            StopAudio();
+            => _audioPlayer.Play(filePath, volume);
 
-            _waveOutDevice = new WaveOut();
-            _audioFileReader = new AudioFileReader(filePath)
-            {
-                Volume = Math.Clamp(volume, 0.0f, 1.0f)
-            };
-            _waveOutDevice.Init(_audioFileReader);
-            _waveOutDevice.Play();
-        }
-
+        /// <summary>
+        /// Ajusta el volumen de la reproducción activa.
+        /// </summary>
         public void SetVolume(float volume)
-        {
-            if (_audioFileReader != null)
-            {
-                _audioFileReader.Volume = Math.Clamp(volume, 0.0f, 1.0f);
-            }
-        }
+            => _audioPlayer.SetVolume(volume);
 
-        public void PauseAudio() => _waveOutDevice?.Pause();
-        public void ResumeAudio() => _waveOutDevice?.Play();
+        /// <summary>
+        /// Pausa la reproducción del audio activo.
+        /// </summary>
+        public void PauseAudio()
+            => _audioPlayer.Pause();
 
+        /// <summary>
+        /// Reanuda la reproducción pausada.
+        /// </summary>
+        public void ResumeAudio()
+            => _audioPlayer.Resume();
+
+        /// <summary>
+        /// Detiene la reproducción y libera el archivo de audio.
+        /// </summary>
         public void StopAudio()
-        {
-            try
-            {
-                _waveOutDevice?.Stop();
-                _waveOutDevice?.Dispose();
-                _waveOutDevice = null;
+            => _audioPlayer.Stop();
 
-                _audioFileReader?.Dispose();
-                _audioFileReader = null;
-            }
-            catch { }
+        /// <summary>
+        /// Libera todos los recursos retenidos por los motores de voz y audio.
+        /// </summary>
+        public void Dispose()
+        {
+            _audioPlayer.Dispose();
+            _systemVoice.Dispose();
+            _kokoro.Dispose();
+            _piper.Dispose();
         }
     }
 }
