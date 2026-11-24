@@ -3,7 +3,7 @@
 
 [![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10.0%20(Cross--Platform)-512BD4.svg)](https://dotnet.microsoft.com/)
-[![Sistemas](https://img.shields.io/badge/Sistemas-Windows%20%7C%20Linux%20%7C%20macOS-success.svg)](MULTIPLATAFORMA_PLAN.md)
+[![Sistemas](https://img.shields.io/badge/Sistemas-Windows%20%7C%20Linux%20%7C%20macOS-success.svg)](#-4-soporte-de-voces-nativas-por-sistema-operativo)
 [![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-1.22.0-yellow.svg)](https://onnxruntime.ai/)
 
 ---
@@ -103,7 +103,88 @@ graph TD
 
 ---
 
-## ⚖️ 4. Evaluación de la Licencia y Compatibilidad Legal
+## 💻 4. Soporte de Voces Nativas por Sistema Operativo
+
+Cada sistema operativo cuenta con su propio ecosistema de síntesis y reproducción de sonido integrado:
+
+### 🪟 Windows (`WindowsVoiceEngine`)
+* **API Utilizada:** `Windows.Media.SpeechSynthesis.SpeechSynthesizer` (WinRT).
+* **Características:**
+  * Acceso automático a voces del sistema en español (*Microsoft Sabina*, *Microsoft Helena*) e inglés (*Microsoft David*, *Microsoft Zira*).
+  * Soporte para voces *Natural Online* en Windows 11.
+  * Modulación de prosodia mediante SSML (`<prosody rate="..." pitch="..." volume="...">`).
+  * Reproducción de sonido gestionada por **NAudio** (`WaveOut`).
+
+### 🍎 macOS (`MacVoiceEngine`)
+* **API Utilizada:** Subsistema nativo `/usr/bin/say`.
+* **Características:**
+  * Detección dinámica de todas las voces instaladas en el sistema (`say -v "?"`), incluyendo voces de Siri y voces en español como *Paulina (es_MX)* o *Mónica (es_ES)*.
+  * Generación directa a formato PCM WAV estándar mediante `--data-format=LEI16@22050`.
+  * Detección de la voz predeterminada del usuario desde `com.apple.speech.voice.prefs`.
+  * Reproducción nativa en terminal y segundo plano mediante `/usr/bin/afplay`.
+
+### 🐧 Linux (`LinuxVoiceEngine`)
+* **API Utilizada:** `speech-dispatcher` (`spd-say`) y `espeak-ng`.
+* **Características:**
+  * Compatible con el estándar de accesibilidad de entornos de escritorio Linux (GNOME, KDE, XFCE).
+  * Detección automática de variantes lingüísticas mediante `espeak-ng --voices` o `spd-say -L`.
+  * Generación directa de archivos WAV con control de palabras por minuto (`-s`) y tono (`-p`).
+  * Reproducción de audio mediante `paplay` (PulseAudio / PipeWire) o `aplay` (ALSA).
+  * Instalación de dependencias en distribuciones Debian/Ubuntu:
+    ```bash
+    sudo apt update && sudo apt install speech-dispatcher espeak-ng pulseaudio-utils
+    ```
+
+---
+
+## 📖 5. Guía de Uso del Sistema
+
+### 1. Selección de Voz y Motor
+En el panel izquierdo, despliega la lista **Voz** o marca la casilla **Modelo externo**:
+* **Voces del Sistema:** Lista las voces instaladas localmente en tu sistema operativo (Windows, macOS o Linux) y los modelos integrados de **Kokoro**.
+* **Pipper (Externo):** Pulsa el botón de búsqueda para cargar un modelo `.onnx` y su archivo de configuración `.json`.
+* **VoiceStudio Api (Externo):** Introduce la URL de tu instancia (por defecto `http://localhost:3900`), pulsa *Cargar*, selecciona el perfil deseado y despliega los *Ajustes de VoiceStudio* para controlar la influencia de indicación, pasos de difusión y filtros acústicos.
+
+### 2. Selección del Modelo Emocional
+En la sección **🧠 Análisis de Emociones**:
+* **Usar modelo en Español (por defecto):** Mantiene activo el modelo calibrado `emotions_es-mx.json`.
+* **Cargar archivo personalizado:** Desmarca la casilla para habilitar el selector de archivos y carga cualquier archivo JSON de emociones (por ejemplo, `__Assets/emotions_es-es.json` o `__Assets/emotions_en-gb.json`). El sistema validará su formato, identificador de idioma y número de emociones de forma inmediata.
+
+### 3. Reproducción y Ajustes en Tiempo Real
+* Pulsa **▶ Reproducir** para sintetizar y escuchar el texto.
+* Los deslizadores de **Velocidad**, **Tono** y **Volumen** aplicarán cambios inmediatamente a la reproducción en curso.
+* Puedes pausar con **⏸** o detener con **⏹**.
+* Haz clic directamente en cualquier palabra o segmento del texto para saltar la reproducción a ese fragmento de forma instantánea.
+
+### 4. Botón de Restauración Rápida (`🔄`)
+* Ubicado en la barra inferior del panel de controles junto a los botones de descarga.
+* Al pulsarlo en cualquier momento, restablece todos los sliders a sus valores estándar (Velocidad 1.0x, Tono 1.0, Volumen 100%), limpia modelos externos y **vuelve a seleccionar automáticamente el idioma y voz predeterminados de tu sistema operativo**.
+
+### 5. Exportación para Animación y Avatares
+* **📥 Descargar Audio Completo:** Genera un archivo `.wav` continuo con la narración de todo el texto.
+* **🧩 Descargar por Segmentos (WAVs + JSON):** Solicita una carpeta de destino y genera:
+  * `segment_001_Emocion.wav`, `segment_002_Emocion.wav`, etc.
+  * `segments_info.json`: Lista detallada de cada fragmento con su texto, emoción dominante calificada, emoji, desglose de sub-emociones y metadatos de transición emocional para sincronizar expresiones faciales y cámaras en tu avatar (Live2D / VRoid / Unity / Unreal).
+
+---
+
+## 🎨 6. Estrategia de Interfaz Gráfica Multiplataforma (Avalonia UI)
+
+El motor central **`VnEmoteVoice.Core`** es 100% multiplataforma (.NET 10). Para ejecutar la interfaz de escritorio de manera idéntica en Linux y macOS:
+
+### Correspondencia de Componentes (WPF ➔ Avalonia UI)
+| Elemento en WPF Actual | Equivalente en Avalonia UI | Comportamiento Multiplataforma |
+|---|---|---|
+| `<Window ...>` | `<Window ...>` | Misma sintaxis XAML con soporte para modo oscuro. |
+| `<Border CornerRadius="8">` | `<Border CornerRadius="8">` | Idéntico. |
+| `<RichTextBox x:Name="RtbInput">` | `<SelectableTextBlock>` o `<TextBox>` | Resaltado de texto mediante `Inlines` y `Run`. |
+| `Run`, `LineBreak`, `Paragraph` | `Run`, `LineBreak` en `Inlines` | Mantiene el resaltado púrpura de segmentos activos. |
+| `OpenFileDialog` / `SaveFileDialog` | `StorageProvider.OpenFilePickerAsync` | Despliega el explorador nativo (Explorer, Finder o portal GTK). |
+| `Dispatcher.InvokeAsync(...)` | `Dispatcher.UIThread.InvokeAsync(...)` | Actualizaciones reactivas de UI sin bloquear el hilo de audio. |
+
+---
+
+## ⚖️ 7. Evaluación de la Licencia y Compatibilidad Legal
 
 El proyecto está licenciado bajo la **Licencia MIT** ([LICENSE](LICENSE)).
 
@@ -120,7 +201,7 @@ El proyecto está licenciado bajo la **Licencia MIT** ([LICENSE](LICENSE)).
 
 ---
 
-## 📋 5. Requisitos del Sistema
+## 📋 8. Requisitos del Sistema
 
 - **Sistemas Operativos Compatibles:**
   - **Windows:** Windows 10 (versión 2004 o superior) o Windows 11 (64 bits).
@@ -130,11 +211,11 @@ El proyecto está licenciado bajo la **Licencia MIT** ([LICENSE](LICENSE)).
 - **Hardware Recomendado:**
   - CPU de 4 núcleos o superior.
   - 8 GB de memoria RAM (mínimo 4 GB).
-  - Tarjeta de sonido estándar.
+  - Dispositivo de salida de audio estándar.
 
 ---
 
-## 🚀 6. Compilación y Ejecución
+## 🚀 9. Compilación y Ejecución
 
 ### 1. Clonar el repositorio
 ```bash
@@ -154,14 +235,7 @@ dotnet run --project VnEmoteVoice.Console/VnEmoteVoice.Console.csproj
 
 ---
 
-## 📄 7. Hoja de Ruta Multiplataforma
-
-Para consultar los detalles de la migración de interfaz gráfica hacia **Avalonia UI** y empaquetado para distribuciones Linux (`.deb`, `AppImage`) y paquetes macOS (`.app`, `.dmg`), revisa el documento dedicado:
-👉 **[MULTIPLATAFORMA_PLAN.md](MULTIPLATAFORMA_PLAN.md)**
-
----
-
-## 📄 8. Licencia y Créditos
+## 📄 10. Licencia y Créditos
 
 Este proyecto se distribuye bajo la **Licencia MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
 
