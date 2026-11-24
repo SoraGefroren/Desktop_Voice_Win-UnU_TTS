@@ -248,7 +248,18 @@
 
                         <!-- Botones de Descarga integrados: al mismo nivel y centrados con iconos y tooltips -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <Button x:Name="BtnDownloadAudio" Content="📥" FontSize="18" Width="90" Height="40" Margin="0,0,12,0"
+                            <Button x:Name="BtnResetSettings" Content="🔄" FontSize="18" Width="76" Height="40" Margin="0,0,10,0"
+                                    Background="#21262d" Foreground="#cbd5e1" FontWeight="SemiBold"
+                                    BorderBrush="#30363d" BorderThickness="1" Cursor="Hand"
+                                    ToolTip="Restaurar controles y configuración por defecto del sistema"
+                                    Click="BtnResetSettings_Click">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                            <Button x:Name="BtnDownloadAudio" Content="📥" FontSize="18" Width="76" Height="40" Margin="0,0,10,0"
                                     Background="#7c3aed" Foreground="White" FontWeight="Bold" Cursor="Hand"
                                     ToolTip="Descargar audio completo en archivo WAV"
                                     Click="BtnDownloadAudio_Click">
@@ -258,7 +269,7 @@
                                     </Style>
                                 </Button.Resources>
                             </Button>
-                            <Button x:Name="BtnSegmentedDownload" Content="🧩" FontSize="18" Width="90" Height="40"
+                            <Button x:Name="BtnSegmentedDownload" Content="🧩" FontSize="18" Width="76" Height="40"
                                     Background="#21262d" Foreground="#cbd5e1" FontWeight="SemiBold"
                                     BorderBrush="#30363d" BorderThickness="1" Cursor="Hand"
                                     ToolTip="Descarga segmentada por frases con metadatos JSON para Narrador Virtual"

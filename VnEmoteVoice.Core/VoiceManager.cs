@@ -23,6 +23,30 @@ namespace VnEmoteVoice.Core
         public const string VoiceStudioApiDisplayName = VoiceStudioApiEngine.ExternalVoiceDisplayName;
 
         /// <summary>
+        /// Obtiene el idioma y nombre de la voz predeterminada configurados en el sistema operativo (Windows).
+        /// Retorna el código BCP-47 del idioma (ej: "es-MX", "es-ES", "en-US") y el nombre de la voz de Windows.
+        /// </summary>
+        public (string Language, string VoiceName) GetSystemDefaultLanguageAndVoice()
+        {
+            try
+            {
+                var defaultVoice = SpeechSynthesizer.DefaultVoice;
+                if (defaultVoice != null)
+                {
+                    string typeLabel = IsOnlineVoice(defaultVoice) ? " (Online)" : " (Local)";
+                    return (defaultVoice.Language, defaultVoice.DisplayName + typeLabel);
+                }
+            }
+            catch
+            {
+                // Fallback si la API de voz de WinRT no responde
+            }
+
+            string cultureLang = System.Globalization.CultureInfo.CurrentUICulture.Name;
+            return (cultureLang, string.Empty);
+        }
+
+        /// <summary>
         /// Devuelve los idiomas disponibles en el sistema (voces de Windows y Kokoro).
         /// </summary>
         public List<string> GetAvailableLanguages()
@@ -121,7 +145,7 @@ namespace VnEmoteVoice.Core
         /// <summary>
         /// Extrae el nombre base de la voz eliminando el sufijo "(Online)" o "(Local)" si existe.
         /// </summary>
-        private static string ExtractVoiceName(string displayNameWithLabel)
+        public static string ExtractVoiceName(string displayNameWithLabel)
         {
             if (string.IsNullOrEmpty(displayNameWithLabel)) return displayNameWithLabel;
             int parenIdx = displayNameWithLabel.LastIndexOf(" (", StringComparison.Ordinal);

@@ -40,7 +40,7 @@ namespace VnEmoteVoice.Console
         {
             _voiceManager = new VoiceManager();
             InitializeComponent();
-            LoadLanguages();
+            LoadLanguagesAndDefaultVoice();
             SetInitialText("Hola. ¡Bienvenido al sistema de conversión de texto a voz! Aquí puedes escribir cualquier texto y convertirlo en audio usando diferentes voces e idiomas disponibles. También, puedes ajustar la velocidad, el tono y el volumen de la voz para personalizar tu experiencia.\n\n¡Escribe algo y pruébalo!");
         }
 
@@ -90,19 +90,83 @@ namespace VnEmoteVoice.Console
             return textRange.Text.TrimEnd('\r', '\n');
         }
 
-        private void LoadLanguages()
+        /// <summary>
+        /// Carga los idiomas disponibles en el ComboBox y selecciona automáticamente el idioma
+        /// y la voz predeterminados según la configuración del sistema operativo.
+        /// </summary>
+        private void LoadLanguagesAndDefaultVoice()
         {
             try
             {
                 var languages = _voiceManager.GetAvailableLanguages();
                 CbLanguage.ItemsSource = languages;
-                var spanishLang = languages.FirstOrDefault(l => l.StartsWith("es", StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrEmpty(spanishLang)) CbLanguage.SelectedItem = spanishLang;
-                else if (languages.Count > 0) CbLanguage.SelectedIndex = 0;
+
+                var (sysLang, sysVoiceName) = _voiceManager.GetSystemDefaultLanguageAndVoice();
+
+                // 1. Buscar coincidencia exacta con el idioma del sistema (ej: "es-MX", "es-ES", "en-US")
+                string? matchedLang = languages.FirstOrDefault(l => string.Equals(l, sysLang, StringComparison.OrdinalIgnoreCase));
+
+                // 2. Si no hay coincidencia exacta, buscar por el código de idioma principal (ej: "es" o "en")
+                if (string.IsNullOrEmpty(matchedLang) && !string.IsNullOrEmpty(sysLang))
+                {
+                    string primaryLang = sysLang.Split('-')[0];
+                    matchedLang = languages.FirstOrDefault(l => l.StartsWith(primaryLang, StringComparison.OrdinalIgnoreCase));
+                }
+
+                // 3. Fallback: idioma español si existe, o el primer idioma de la lista
+                if (string.IsNullOrEmpty(matchedLang))
+                {
+                    matchedLang = languages.FirstOrDefault(l => l.StartsWith("es", StringComparison.OrdinalIgnoreCase))
+                                  ?? (languages.Count > 0 ? languages[0] : null);
+                }
+
+                if (!string.IsNullOrEmpty(matchedLang))
+                {
+                    CbLanguage.SelectedItem = matchedLang;
+                    SelectDefaultSystemVoice(sysVoiceName);
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al cargar idiomas: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Selecciona en el ComboBox de voces la voz correspondiente a la predeterminada del sistema operativo.
+        /// Si no se encuentra en el idioma seleccionado, selecciona la primera voz disponible.
+        /// </summary>
+        private void SelectDefaultSystemVoice(string sysVoiceName = "")
+        {
+            if (CbVoices.Items.Count == 0) return;
+
+            if (string.IsNullOrEmpty(sysVoiceName))
+            {
+                var (_, defaultVoice) = _voiceManager.GetSystemDefaultLanguageAndVoice();
+                sysVoiceName = defaultVoice;
+            }
+
+            if (!string.IsNullOrEmpty(sysVoiceName))
+            {
+                string baseSysVoice = VoiceManager.ExtractVoiceName(sysVoiceName);
+
+                foreach (var item in CbVoices.Items)
+                {
+                    string voiceStr = item?.ToString() ?? "";
+                    string baseItemVoice = VoiceManager.ExtractVoiceName(voiceStr);
+
+                    if (string.Equals(baseItemVoice, baseSysVoice, StringComparison.OrdinalIgnoreCase) ||
+                        voiceStr.StartsWith(baseSysVoice, StringComparison.OrdinalIgnoreCase))
+                    {
+                        CbVoices.SelectedItem = item;
+                        return;
+                    }
+                }
+            }
+
+            if (CbVoices.SelectedIndex < 0 && CbVoices.Items.Count > 0)
+            {
+                CbVoices.SelectedIndex = 0;
             }
         }
 
@@ -137,8 +201,8 @@ namespace VnEmoteVoice.Console
             if (LblLanguageTitle != null)
                 LblLanguageTitle.Text = "🌐 Idioma";
 
-            // Restaurar selector de idiomas disponibles
-            LoadLanguages();
+            // Restaurar selector de idiomas disponibles y voz predeterminada del sistema
+            LoadLanguagesAndDefaultVoice();
 
             // Mostrar nuevamente el selector de voz
             if (PanelVoiceSelector != null)
@@ -173,7 +237,7 @@ namespace VnEmoteVoice.Console
             {
                 var voices = _voiceManager.GetVoicesForLanguage(selectedLang);
                 CbVoices.ItemsSource = voices;
-                if (voices.Count > 0) CbVoices.SelectedIndex = 0;
+                SelectDefaultSystemVoice();
 
                 if (_isPlaying)
                 {
@@ -1028,6 +1092,80 @@ namespace VnEmoteVoice.Console
             });
         }
 
+        /// <summary>
+        /// Restaura todos los controles y parámetros del panel izquierdo a sus valores iniciales por defecto
+        /// en cualquier momento, seleccionando el idioma y voz predeterminados del sistema operativo.
+        /// </summary>
+        private void BtnResetSettings_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. Desmarcar selector de modelos externos para volver al modo nativo
+            if (ChkExternalModel != null && ChkExternalModel.IsChecked == true)
+            {
+                ChkExternalModel.IsChecked = false;
+            }
+
+            // 2. Limpiar rutas y estados de modelos Piper externos
+            _piperOnnxPath = string.Empty;
+            _piperJsonPath = string.Empty;
+            if (LblOnnxPath != null)
+            {
+                LblOnnxPath.Text = "Sin archivo seleccionado";
+                LblOnnxPath.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+            }
+            if (LblJsonPath != null)
+            {
+                LblJsonPath.Text = "Sin archivo seleccionado";
+                LblJsonPath.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+            }
+
+            // 3. Restablecer controles de conexión a VoiceStudio API
+            if (TxtVoiceStudioUrl != null)
+                TxtVoiceStudioUrl.Text = "http://localhost:3900";
+            if (LblVoiceStudioStatus != null)
+            {
+                LblVoiceStudioStatus.Text = "No conectado";
+                LblVoiceStudioStatus.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+            }
+            if (CbVoiceStudioProfiles != null)
+                CbVoiceStudioProfiles.ItemsSource = null;
+
+            // Restablecer parámetros acústicos de VoiceStudio
+            if (SliderGuidanceScale != null) SliderGuidanceScale.Value = 2.0;
+            if (SliderTShift != null) SliderTShift.Value = 0.10;
+            if (SliderPosTemp != null) SliderPosTemp.Value = 5.0;
+            if (SliderClassTemp != null) SliderClassTemp.Value = 0.0;
+            if (SliderLayerPenalty != null) SliderLayerPenalty.Value = 5.0;
+            if (SliderNumStep != null) SliderNumStep.Value = 16;
+            if (ChkBalanceVolume != null) ChkBalanceVolume.IsChecked = true;
+            if (ChkDenoise != null) ChkDenoise.IsChecked = true;
+            if (ChkPostprocess != null) ChkPostprocess.IsChecked = true;
+
+            // 4. Restablecer sliders de velocidad, tono y volumen a valores estándar
+            if (SliderSpeed != null) SliderSpeed.Value = 1.0;
+            if (SliderPitch != null) SliderPitch.Value = 1.0;
+            if (SliderVolume != null) SliderVolume.Value = 100;
+
+            // 5. Restablecer análisis de emociones al modelo por defecto en español
+            if (ChkUseDefaultEmotionModel != null)
+                ChkUseDefaultEmotionModel.IsChecked = true;
+            if (PanelCustomEmotionModel != null)
+                PanelCustomEmotionModel.Visibility = Visibility.Collapsed;
+            if (TxtEmotionModelPath != null)
+                TxtEmotionModelPath.Text = "Ningún archivo seleccionado";
+            if (LblEmotionModelStatus != null)
+                LblEmotionModelStatus.Text = "";
+            EmotionAnalyzer.LoadDefaultSpanishModel();
+
+            // 6. Recargar y seleccionar idioma y voz por defecto del sistema operativo
+            LoadLanguagesAndDefaultVoice();
+
+            // 7. Si hay reproducción activa en este momento, reanudar de inmediato con los ajustes restablecidos
+            if (_isPlaying)
+            {
+                RestartCurrentSegmentWithNewSettings();
+            }
+        }
+
         private async void BtnDownloadAudio_Click(object sender, RoutedEventArgs e)
         {
             if (!ValidateReadyToSynthesize()) return;
@@ -1099,6 +1237,7 @@ namespace VnEmoteVoice.Console
 
             BtnSegmentedDownload.IsEnabled = false;
             BtnDownloadAudio.IsEnabled = false;
+            if (BtnResetSettings != null) BtnResetSettings.IsEnabled = false;
 
             try
             {
@@ -1165,6 +1304,7 @@ namespace VnEmoteVoice.Console
             {
                 BtnSegmentedDownload.IsEnabled = true;
                 BtnDownloadAudio.IsEnabled = true;
+                if (BtnResetSettings != null) BtnResetSettings.IsEnabled = true;
             }
         }
     }
