@@ -36,6 +36,12 @@ namespace VnEmoteVoice.Console
         /// <summary>Ruta al archivo .json de configuración del modelo Piper externo.</summary>
         private string _piperJsonPath = string.Empty;
 
+        /// <summary>Ventana no modal de búsqueda y reemplazo de texto estilo Notepad.</summary>
+        private FindReplaceWindow? _findReplaceWindow;
+        private string _lastSearchQuery = string.Empty;
+        private bool _lastMatchCase = false;
+        private bool _lastWholeWord = false;
+
         public MainWindow()
         {
             _voiceManager = new VoiceManager();
@@ -124,6 +130,7 @@ namespace VnEmoteVoice.Console
                 {
                     CbLanguage.SelectedItem = matchedLang;
                     SelectDefaultSystemVoice(sysVoiceName);
+                    UpdateLanguageMenuCheckmarks(matchedLang);
                 }
             }
             catch (Exception ex)
@@ -238,6 +245,7 @@ namespace VnEmoteVoice.Console
                 var voices = _voiceManager.GetVoicesForLanguage(selectedLang);
                 CbVoices.ItemsSource = voices;
                 SelectDefaultSystemVoice();
+                UpdateLanguageMenuCheckmarks(selectedLang);
 
                 if (_isPlaying)
                 {
@@ -1306,6 +1314,421 @@ namespace VnEmoteVoice.Console
                 BtnDownloadAudio.IsEnabled = true;
                 if (BtnResetSettings != null) BtnResetSettings.IsEnabled = true;
             }
+        }
+
+        #region Atajos de Teclado y Control de Menú
+
+        /// <summary>
+        /// Maneja los atajos globales de teclado para búsqueda y reemplazo estilo Notepad.
+        /// </summary>
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Ctrl + F: Abrir ventana de búsqueda
+            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.F)
+            {
+                OpenFindReplaceDialog(isReplaceMode: false);
+                e.Handled = true;
+            }
+            // Ctrl + H: Abrir ventana de reemplazo
+            else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.H)
+            {
+                OpenFindReplaceDialog(isReplaceMode: true);
+                e.Handled = true;
+            }
+            // F3 / Shift + F3: Buscar siguiente / anterior
+            else if (e.Key == Key.F3)
+            {
+                bool isShift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+                if (isShift)
+                {
+                    MenuFindPrev_Click(sender, e);
+                }
+                else
+                {
+                    MenuFindNext_Click(sender, e);
+                }
+                e.Handled = true;
+            }
+        }
+
+        #endregion
+
+        #region Menú Idioma
+
+        private void MenuLangSpanish_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchLanguage("es");
+        }
+
+        private void MenuLangEnglish_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchLanguage("en");
+        }
+
+        private void MenuLangChinese_Click(object sender, RoutedEventArgs e)
+        {
+            SwitchLanguage("zh");
+        }
+
+        /// <summary>
+        /// Cambia el idioma seleccionado del sistema buscando la primera coincidencia que empiece con el prefijo dado.
+        /// Si está en modo de modelo externo, desmarca la casilla para volver al catálogo de idiomas.
+        /// </summary>
+        private void SwitchLanguage(string langPrefix)
+        {
+            if (ChkExternalModel?.IsChecked == true)
+            {
+                ChkExternalModel.IsChecked = false;
+            }
+
+            if (CbLanguage == null || CbLanguage.Items.Count == 0) return;
+
+            string? targetLang = null;
+            foreach (var item in CbLanguage.Items)
+            {
+                if (item is string lang && lang.StartsWith(langPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    targetLang = lang;
+                    break;
+                }
+            }
+
+            if (targetLang != null)
+            {
+                CbLanguage.SelectedItem = targetLang;
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"No se encontraron voces disponibles instaladas para el idioma seleccionado (prefijo \"{langPrefix}\").",
+                    "Idioma no disponible",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+
+            UpdateLanguageMenuCheckmarks(targetLang ?? CbLanguage.SelectedItem?.ToString() ?? "");
+        }
+
+        /// <summary>
+        /// Sincroniza las marcas de verificación de los elementos de idioma del menú según el idioma actual.
+        /// </summary>
+        private void UpdateLanguageMenuCheckmarks(string currentLanguage)
+        {
+            if (MenuLangEs == null || MenuLangEn == null || MenuLangZh == null) return;
+
+            string langLower = currentLanguage?.ToLowerInvariant() ?? "";
+            MenuLangEs.IsChecked = langLower.StartsWith("es");
+            MenuLangEn.IsChecked = langLower.StartsWith("en");
+            MenuLangZh.IsChecked = langLower.StartsWith("zh");
+        }
+
+        #endregion
+
+        #region Menú Edición (Búsqueda y Reemplazo estilo Notepad)
+
+        private void OpenFindReplaceDialog(bool isReplaceMode)
+        {
+            if (_findReplaceWindow == null)
+            {
+                _findReplaceWindow = new FindReplaceWindow(this, isReplaceMode);
+            }
+            else
+            {
+                _findReplaceWindow.SetMode(isReplaceMode);
+            }
+
+            // Si hay texto seleccionado en una sola línea en el editor, colocarlo como término de búsqueda inicial
+            string selectedText = RtbInput.Selection.Text?.Trim() ?? "";
+            if (!string.IsNullOrEmpty(selectedText) && !selectedText.Contains('\n') && !selectedText.Contains('\r'))
+            {
+                _findReplaceWindow.SearchText = selectedText;
+            }
+
+            _findReplaceWindow.Show();
+            _findReplaceWindow.Activate();
+        }
+
+        private void MenuFind_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFindReplaceDialog(isReplaceMode: false);
+        }
+
+        private void MenuReplace_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFindReplaceDialog(isReplaceMode: true);
+        }
+
+        private void MenuFindNext_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_lastSearchQuery))
+            {
+                OpenFindReplaceDialog(isReplaceMode: false);
+                return;
+            }
+
+            FindTextInEditor(_lastSearchQuery, _lastMatchCase, _lastWholeWord, searchDown: true);
+        }
+
+        private void MenuFindPrev_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_lastSearchQuery))
+            {
+                OpenFindReplaceDialog(isReplaceMode: false);
+                return;
+            }
+
+            FindTextInEditor(_lastSearchQuery, _lastMatchCase, _lastWholeWord, searchDown: false);
+        }
+
+        /// <summary>
+        /// Busca la siguiente o anterior aparición del texto en el RichTextBox respetando mayúsculas/minúsculas y palabra completa.
+        /// </summary>
+        public bool FindTextInEditor(string query, bool matchCase, bool wholeWord, bool searchDown, bool wrapAround = true)
+        {
+            if (string.IsNullOrEmpty(query)) return false;
+
+            _lastSearchQuery = query;
+            _lastMatchCase = matchCase;
+            _lastWholeWord = wholeWord;
+
+            var (fullText, pointers) = ExtractTextAndPointers();
+            if (string.IsNullOrEmpty(fullText) || pointers.Count == 0) return false;
+
+            // Determinar la posición de carácter del cursor dentro del texto
+            TextPointer currentPt = searchDown ? RtbInput.Selection.End : RtbInput.Selection.Start;
+            int currentOffset = 0;
+            for (int i = 0; i < pointers.Count; i++)
+            {
+                if (pointers[i].CompareTo(currentPt) >= 0)
+                {
+                    currentOffset = i;
+                    break;
+                }
+                if (i == pointers.Count - 1)
+                {
+                    currentOffset = pointers.Count;
+                }
+            }
+
+            StringComparison comp = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            int matchIndex = -1;
+
+            if (searchDown)
+            {
+                matchIndex = FindNextMatchIndex(fullText, query, currentOffset, comp, wholeWord);
+                if (matchIndex < 0 && wrapAround)
+                {
+                    matchIndex = FindNextMatchIndex(fullText, query, 0, comp, wholeWord);
+                }
+            }
+            else
+            {
+                matchIndex = FindPrevMatchIndex(fullText, query, currentOffset - 1, comp, wholeWord);
+                if (matchIndex < 0 && wrapAround)
+                {
+                    matchIndex = FindPrevMatchIndex(fullText, query, fullText.Length - 1, comp, wholeWord);
+                }
+            }
+
+            if (matchIndex >= 0 && matchIndex < pointers.Count)
+            {
+                TextPointer start = pointers[matchIndex];
+                int endCharIdx = matchIndex + query.Length;
+                TextPointer end = (endCharIdx < pointers.Count)
+                    ? pointers[endCharIdx]
+                    : (pointers[pointers.Count - 1].GetPositionAtOffset(1, LogicalDirection.Forward) ?? RtbInput.Document.ContentEnd);
+
+                RtbInput.Selection.Select(start, end);
+                RtbInput.Focus();
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Reemplaza la selección actual si coincide con la búsqueda y busca la siguiente aparición.
+        /// </summary>
+        public bool ReplaceTextInEditor(string query, string replaceWith, bool matchCase, bool wholeWord)
+        {
+            if (string.IsNullOrEmpty(query)) return false;
+
+            string selectedText = RtbInput.Selection.Text;
+            bool isMatch = string.Equals(selectedText, query, matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
+
+            if (isMatch && (!wholeWord || IsCurrentSelectionWholeWord()))
+            {
+                RtbInput.Selection.Text = replaceWith;
+                FindTextInEditor(query, matchCase, wholeWord, searchDown: true);
+                return true;
+            }
+
+            return FindTextInEditor(query, matchCase, wholeWord, searchDown: true);
+        }
+
+        /// <summary>
+        /// Reemplaza todas las apariciones del texto en el RichTextBox desde el inicio hasta el final.
+        /// </summary>
+        public int ReplaceAllTextInEditor(string query, string replaceWith, bool matchCase, bool wholeWord)
+        {
+            if (string.IsNullOrEmpty(query)) return 0;
+
+            RtbInput.Selection.Select(RtbInput.Document.ContentStart, RtbInput.Document.ContentStart);
+
+            int count = 0;
+            while (FindTextInEditor(query, matchCase, wholeWord, searchDown: true, wrapAround: false))
+            {
+                RtbInput.Selection.Text = replaceWith;
+                RtbInput.Selection.Select(RtbInput.Selection.End, RtbInput.Selection.End);
+                count++;
+            }
+
+            return count;
+        }
+
+        private bool IsCurrentSelectionWholeWord()
+        {
+            var (fullText, pointers) = ExtractTextAndPointers();
+            int startIdx = -1;
+            for (int i = 0; i < pointers.Count; i++)
+            {
+                if (pointers[i].CompareTo(RtbInput.Selection.Start) >= 0)
+                {
+                    startIdx = i;
+                    break;
+                }
+            }
+
+            if (startIdx >= 0)
+            {
+                return IsWholeWordMatch(fullText, startIdx, RtbInput.Selection.Text.Length);
+            }
+            return true;
+        }
+
+        private static int FindNextMatchIndex(string fullText, string query, int startIndex, StringComparison comp, bool wholeWord)
+        {
+            if (startIndex < 0 || startIndex >= fullText.Length) return -1;
+
+            int idx = startIndex;
+            while (idx <= fullText.Length - query.Length)
+            {
+                int found = fullText.IndexOf(query, idx, comp);
+                if (found < 0) return -1;
+
+                if (!wholeWord || IsWholeWordMatch(fullText, found, query.Length))
+                {
+                    return found;
+                }
+                idx = found + 1;
+            }
+            return -1;
+        }
+
+        private static int FindPrevMatchIndex(string fullText, string query, int startIndex, StringComparison comp, bool wholeWord)
+        {
+            if (startIndex < 0) return -1;
+            if (startIndex > fullText.Length - query.Length)
+                startIndex = fullText.Length - query.Length;
+
+            int idx = startIndex;
+            while (idx >= 0)
+            {
+                int found = fullText.LastIndexOf(query, idx, comp);
+                if (found < 0) return -1;
+
+                if (!wholeWord || IsWholeWordMatch(fullText, found, query.Length))
+                {
+                    return found;
+                }
+                idx = found - 1;
+            }
+            return -1;
+        }
+
+        private static bool IsWholeWordMatch(string text, int index, int length)
+        {
+            if (index > 0 && char.IsLetterOrDigit(text[index - 1]))
+                return false;
+
+            int afterIndex = index + length;
+            if (afterIndex < text.Length && char.IsLetterOrDigit(text[afterIndex]))
+                return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Recorre el FlowDocument del RichTextBox y extrae una cadena de texto plana continua
+        /// junto con un mapa exacto de cada carácter a su correspondiente TextPointer dentro del documento.
+        /// </summary>
+        private (string FullText, List<TextPointer> Pointers) ExtractTextAndPointers()
+        {
+            var sb = new System.Text.StringBuilder();
+            var pointers = new List<TextPointer>();
+
+            TextPointer nav = RtbInput.Document.ContentStart;
+            while (nav != null && nav.CompareTo(RtbInput.Document.ContentEnd) < 0)
+            {
+                TextPointerContext context = nav.GetPointerContext(LogicalDirection.Forward);
+                if (context == TextPointerContext.Text)
+                {
+                    string text = nav.GetTextInRun(LogicalDirection.Forward);
+                    for (int i = 0; i < text.Length; i++)
+                    {
+                        TextPointer? pt = nav.GetPositionAtOffset(i, LogicalDirection.Forward);
+                        if (pt != null)
+                        {
+                            sb.Append(text[i]);
+                            pointers.Add(pt);
+                        }
+                    }
+                }
+                else if (context == TextPointerContext.ElementStart)
+                {
+                    var elem = nav.GetAdjacentElement(LogicalDirection.Forward);
+                    if (elem is LineBreak)
+                    {
+                        sb.Append('\n');
+                        pointers.Add(nav);
+                    }
+                    else if (elem is Paragraph && sb.Length > 0 && sb[sb.Length - 1] != '\n')
+                    {
+                        sb.Append('\n');
+                        pointers.Add(nav);
+                    }
+                }
+                nav = nav.GetNextContextPosition(LogicalDirection.Forward);
+            }
+
+            return (sb.ToString(), pointers);
+        }
+
+        #endregion
+
+        #region Menú Ayuda (Créditos y Acerca de)
+
+        private void MenuAbout_Click(object sender, RoutedEventArgs e)
+        {
+            var aboutWin = new AboutWindow
+            {
+                Owner = this
+            };
+            aboutWin.ShowDialog();
+        }
+
+        #endregion
+
+        protected override void OnClosed(EventArgs e)
+        {
+            try
+            {
+                _findReplaceWindow?.Close();
+            }
+            catch { }
+
+            _voiceManager.Dispose();
+            base.OnClosed(e);
         }
     }
 }

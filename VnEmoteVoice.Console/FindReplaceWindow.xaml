@@ -1,0 +1,89 @@
+<Window x:Class="VnEmoteVoice.Console.FindReplaceWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Buscar y reemplazar" Height="300" Width="480"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False"
+        Background="#0f1117" Foreground="White" Icon="/__Assets/icon.ico">
+    <Border Background="#161b22" BorderBrush="#30363d" BorderThickness="1" CornerRadius="8" Margin="10" Padding="15">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="130"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Panel Izquierdo: Campos de entrada y opciones -->
+            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                <!-- Campo Buscar -->
+                <TextBlock Text="Buscar:" Foreground="#cbd5e1" FontSize="12" Margin="0,0,0,4"/>
+                <Border Background="#21262d" BorderBrush="#30363d" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,0,10">
+                    <TextBox x:Name="TxtFind" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="13" 
+                             VerticalAlignment="Center" KeyDown="TxtFind_KeyDown"/>
+                </Border>
+
+                <!-- Campo Reemplazar -->
+                <TextBlock x:Name="LblReplaceTitle" Text="Reemplazar por:" Foreground="#cbd5e1" FontSize="12" Margin="0,0,0,4"/>
+                <Border x:Name="BorderReplace" Background="#21262d" BorderBrush="#30363d" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,0,12">
+                    <TextBox x:Name="TxtReplace" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="13" 
+                             VerticalAlignment="Center" KeyDown="TxtReplace_KeyDown"/>
+                </Border>
+
+                <!-- Opciones de búsqueda -->
+                <CheckBox x:Name="ChkMatchCase" Content="Coincidir mayúsculas y minúsculas" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,6"/>
+                <CheckBox x:Name="ChkWholeWord" Content="Solo palabras completas" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,10"/>
+
+                <!-- Dirección de búsqueda -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="Dirección:" Foreground="#94a3b8" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <RadioButton x:Name="RbDown" Content="Abajo" IsChecked="True" Foreground="#cbd5e1" FontSize="11" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                    <RadioButton x:Name="RbUp" Content="Arriba" Foreground="#cbd5e1" FontSize="11" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Mensaje de estado -->
+                <TextBlock x:Name="LblStatus" Text="" Foreground="#f87171" FontSize="11" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- Panel Derecho: Botones de acción estilo Notepad -->
+            <StackPanel Grid.Column="1">
+                <Button x:Name="BtnFindNext" Content="Buscar siguiente" Height="30" Margin="0,0,0,6"
+                        Background="#21262d" Foreground="#cbd5e1" FontWeight="SemiBold" FontSize="11"
+                        BorderBrush="#30363d" BorderThickness="1" Cursor="Hand" Click="BtnFindNext_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                    </Button.Resources>
+                </Button>
+
+                <Button x:Name="BtnFindPrev" Content="Buscar anterior" Height="30" Margin="0,0,0,6"
+                        Background="#21262d" Foreground="#cbd5e1" FontWeight="SemiBold" FontSize="11"
+                        BorderBrush="#30363d" BorderThickness="1" Cursor="Hand" Click="BtnFindPrev_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                    </Button.Resources>
+                </Button>
+
+                <Button x:Name="BtnReplace" Content="Reemplazar" Height="30" Margin="0,0,0,6"
+                        Background="#21262d" Foreground="#cbd5e1" FontWeight="SemiBold" FontSize="11"
+                        BorderBrush="#30363d" BorderThickness="1" Cursor="Hand" Click="BtnReplace_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                    </Button.Resources>
+                </Button>
+
+                <Button x:Name="BtnReplaceAll" Content="Reemplazar todo" Height="30" Margin="0,0,0,12"
+                        Background="#21262d" Foreground="#cbd5e1" FontWeight="SemiBold" FontSize="11"
+                        BorderBrush="#30363d" BorderThickness="1" Cursor="Hand" Click="BtnReplaceAll_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                    </Button.Resources>
+                </Button>
+
+                <Button Content="Cerrar" Height="30"
+                        Background="#30363d" Foreground="#94a3b8" FontSize="11"
+                        BorderBrush="#444c56" BorderThickness="1" Cursor="Hand" Click="BtnClose_Click" IsCancel="True">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

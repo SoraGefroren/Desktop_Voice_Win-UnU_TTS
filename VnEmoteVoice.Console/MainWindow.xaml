@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Vn Emote Voice (TTS)" Height="650" Width="980" MinHeight="550" MinWidth="800"
         Icon="/__Assets/icon.ico"
-        Background="#0f1117" Foreground="White" WindowStartupLocation="CenterScreen">
+        Background="#0f1117" Foreground="White" WindowStartupLocation="CenterScreen"
+        KeyDown="Window_KeyDown">
     
     <Window.Resources>
         <!-- Estilo personalizado para ComboBoxItem con tema oscuro y resaltado en morado -->
@@ -191,16 +192,61 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Estilos para Barra de Menú oscura -->
+        <Style TargetType="Menu">
+            <Setter Property="Background" Value="#161b22"/>
+            <Setter Property="Foreground" Value="#e2e8f0"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style TargetType="MenuItem">
+            <Setter Property="Foreground" Value="#e2e8f0"/>
+            <Setter Property="Background" Value="#161b22"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style TargetType="Separator">
+            <Setter Property="Background" Value="#30363d"/>
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Margin" Value="4,2"/>
+        </Style>
     </Window.Resources>
     
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="60"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/> <!-- Fila 0: Barra de menú superior -->
+            <RowDefinition Height="60"/>   <!-- Fila 1: Barra púrpura con controles y avatar -->
+            <RowDefinition Height="*"/>    <!-- Fila 2: Cuerpo principal -->
         </Grid.RowDefinitions>
 
+        <!-- Barra de Menú Superior -->
+        <Menu Grid.Row="0" Background="#161b22" Foreground="#e2e8f0" BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="4,2">
+            <!-- 1. Menú Idioma -->
+            <MenuItem Header="_Idioma">
+                <MenuItem x:Name="MenuLangEs" Header="🇪🇸 Español" IsCheckable="True" IsChecked="True" Click="MenuLangSpanish_Click"/>
+                <MenuItem x:Name="MenuLangEn" Header="🇬🇧 English (Inglés)" IsCheckable="True" Click="MenuLangEnglish_Click"/>
+                <MenuItem x:Name="MenuLangZh" Header="🇨🇳 中文 (Chino)" IsCheckable="True" Click="MenuLangChinese_Click"/>
+            </MenuItem>
+
+            <!-- 2. Menú Edición (Búsqueda y reemplazo estilo Notepad) -->
+            <MenuItem Header="_Edición">
+                <MenuItem Header="_Buscar..." InputGestureText="Ctrl+F" Click="MenuFind_Click"/>
+                <MenuItem Header="Buscar _siguiente" InputGestureText="F3" Click="MenuFindNext_Click"/>
+                <MenuItem Header="Buscar _anterior" InputGestureText="Shift+F3" Click="MenuFindPrev_Click"/>
+                <Separator/>
+                <MenuItem Header="_Reemplazar..." InputGestureText="Ctrl+H" Click="MenuReplace_Click"/>
+            </MenuItem>
+
+            <!-- 3. Menú Ayuda -->
+            <MenuItem Header="A_yuda">
+                <MenuItem Header="_Acerca de Vn Emote Voice..." Click="MenuAbout_Click"/>
+            </MenuItem>
+        </Menu>
+
         <!-- Barra Superior con Botón Play / Pause / Stop y Monitor de Emoción -->
-        <Grid Background="#6d28d9" Grid.Row="0">
+        <Grid Background="#6d28d9" Grid.Row="1">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0">
                 <Image Source="/__Assets/icon.png" Width="26" Height="26" Margin="0,0,10,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
                 <TextBlock Text="Vn Emote Voice (TTS)" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
@@ -232,7 +278,7 @@
         </Grid>
 
         <!-- Cuerpo Principal -->
-        <Grid Grid.Row="1" Margin="15">
+        <Grid Grid.Row="2" Margin="15">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="290"/>
                 <ColumnDefinition Width="*"/>
