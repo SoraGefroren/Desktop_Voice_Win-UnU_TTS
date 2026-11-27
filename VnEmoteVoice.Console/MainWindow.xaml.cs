@@ -46,8 +46,10 @@ namespace VnEmoteVoice.Console
         {
             _voiceManager = new VoiceManager();
             InitializeComponent();
+            LocalizationManager.InitializeFromSystem();
+            ApplyLanguageToUI();
             LoadLanguagesAndDefaultVoice();
-            SetInitialText("Hola. ¡Bienvenido al sistema de conversión de texto a voz! Aquí puedes escribir cualquier texto y convertirlo en audio usando diferentes voces e idiomas disponibles. También, puedes ajustar la velocidad, el tono y el volumen de la voz para personalizar tu experiencia.\n\n¡Escribe algo y pruébalo!");
+            SetInitialText(LocalizationManager.GetString("Editor_WelcomeText"));
         }
 
         private void SetInitialText(string text)
@@ -130,7 +132,6 @@ namespace VnEmoteVoice.Console
                 {
                     CbLanguage.SelectedItem = matchedLang;
                     SelectDefaultSystemVoice(sysVoiceName);
-                    UpdateLanguageMenuCheckmarks(matchedLang);
                 }
             }
             catch (Exception ex)
@@ -180,7 +181,7 @@ namespace VnEmoteVoice.Console
         private void ChkExternalModel_Checked(object sender, RoutedEventArgs e)
         {
             if (LblLanguageTitle != null)
-                LblLanguageTitle.Text = "🧠 Selector de Modelos";
+                LblLanguageTitle.Text = LocalizationManager.GetString("Panel_ModelSelectorTitle");
 
             // Ocultar selector de voz
             if (PanelVoiceSelector != null)
@@ -206,7 +207,7 @@ namespace VnEmoteVoice.Console
         private void ChkExternalModel_Unchecked(object sender, RoutedEventArgs e)
         {
             if (LblLanguageTitle != null)
-                LblLanguageTitle.Text = "🌐 Idioma";
+                LblLanguageTitle.Text = LocalizationManager.GetString("Panel_LanguageTitle");
 
             // Restaurar selector de idiomas disponibles y voz predeterminada del sistema
             LoadLanguagesAndDefaultVoice();
@@ -245,7 +246,6 @@ namespace VnEmoteVoice.Console
                 var voices = _voiceManager.GetVoicesForLanguage(selectedLang);
                 CbVoices.ItemsSource = voices;
                 SelectDefaultSystemVoice();
-                UpdateLanguageMenuCheckmarks(selectedLang);
 
                 if (_isPlaying)
                 {
@@ -679,7 +679,7 @@ namespace VnEmoteVoice.Console
         {
             if (LblCharCount != null)
             {
-                LblCharCount.Text = $"{_fullPlainText.Length} caracteres";
+                LblCharCount.Text = LocalizationManager.Format("Editor_CharCount", _fullPlainText.Length);
             }
         }
 
@@ -1082,7 +1082,7 @@ namespace VnEmoteVoice.Console
                 BtnPlay.Visibility = Visibility.Visible;
                 BtnPause.Content = "⏸";
                 LblEmotionEmoji.Text = "😐";
-                LblEmotionName.Text = "Neutral";
+                LblEmotionName.Text = LocalizationManager.GetString("Header_Emotion_Neutral");
                 BadgeTransition.Visibility = Visibility.Collapsed;
 
                 _isHighlighting = true;
@@ -1117,12 +1117,12 @@ namespace VnEmoteVoice.Console
             _piperJsonPath = string.Empty;
             if (LblOnnxPath != null)
             {
-                LblOnnxPath.Text = "Sin archivo seleccionado";
+                LblOnnxPath.Text = LocalizationManager.GetString("Piper_NoFile");
                 LblOnnxPath.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
             }
             if (LblJsonPath != null)
             {
-                LblJsonPath.Text = "Sin archivo seleccionado";
+                LblJsonPath.Text = LocalizationManager.GetString("Piper_NoFile");
                 LblJsonPath.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
             }
 
@@ -1131,7 +1131,7 @@ namespace VnEmoteVoice.Console
                 TxtVoiceStudioUrl.Text = "http://localhost:3900";
             if (LblVoiceStudioStatus != null)
             {
-                LblVoiceStudioStatus.Text = "No conectado";
+                LblVoiceStudioStatus.Text = LocalizationManager.GetString("VoiceStudio_Status_Disconnected");
                 LblVoiceStudioStatus.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
             }
             if (CbVoiceStudioProfiles != null)
@@ -1159,7 +1159,7 @@ namespace VnEmoteVoice.Console
             if (PanelCustomEmotionModel != null)
                 PanelCustomEmotionModel.Visibility = Visibility.Collapsed;
             if (TxtEmotionModelPath != null)
-                TxtEmotionModelPath.Text = "Ningún archivo seleccionado";
+                TxtEmotionModelPath.Text = LocalizationManager.GetString("Emotion_NoFile");
             if (LblEmotionModelStatus != null)
                 LblEmotionModelStatus.Text = "";
             EmotionAnalyzer.LoadDefaultSpanishModel();
@@ -1181,13 +1181,16 @@ namespace VnEmoteVoice.Console
             string text = GetPlainTextFromRichTextBox();
             if (string.IsNullOrWhiteSpace(text))
             {
-                MessageBox.Show("No hay texto para exportar.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    LocalizationManager.GetString("Msg_InputEmpty"),
+                    LocalizationManager.GetString("Msg_WarningTitle"),
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             SaveFileDialog saveFileDialog = new SaveFileDialog
             {
-                Filter = "Archivo de audio WAV (*.wav)|*.wav",
+                Filter = LocalizationManager.GetString("Msg_SaveAudioFilter"),
                 FileName = $"vnarrator_audio_{DateTime.Now:yyyyMMdd_HHmmss}.wav",
                 InitialDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")
             };
@@ -1203,11 +1206,17 @@ namespace VnEmoteVoice.Console
                     float volume = (float)(SliderVolume.Value / 100.0);
 
                     await _voiceManager.SynthesizeSpeechAsync(text, saveFileDialog.FileName, selectedVoice, selectedLang, speed, pitch, volume);
-                    MessageBox.Show("Audio guardado exitosamente en Descargas.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show(
+                        LocalizationManager.Format("Msg_DownloadSuccess", saveFileDialog.FileName),
+                        LocalizationManager.GetString("Msg_SuccessTitle"),
+                        MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Error al guardar el archivo: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show(
+                        LocalizationManager.Format("Msg_DownloadError", ex.Message),
+                        LocalizationManager.GetString("Msg_ErrorTitle"),
+                        MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -1219,13 +1228,16 @@ namespace VnEmoteVoice.Console
             string text = GetPlainTextFromRichTextBox();
             if (string.IsNullOrWhiteSpace(text))
             {
-                MessageBox.Show("No hay texto para exportar.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    LocalizationManager.GetString("Msg_InputEmpty"),
+                    LocalizationManager.GetString("Msg_WarningTitle"),
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             var folderDialog = new Microsoft.Win32.OpenFolderDialog
             {
-                Title = "Selecciona la carpeta donde guardar los segmentos de audio",
+                Title = LocalizationManager.GetString("Msg_SelectFolderTitle"),
                 InitialDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
                 Multiselect = false,
             };
@@ -1301,12 +1313,16 @@ namespace VnEmoteVoice.Console
                 await File.WriteAllTextAsync(jsonPath, jsonContent);
 
                 MessageBox.Show(
-                    $"Exportación completada:\n• {segments.Count} archivos WAV\n• 1 archivo JSON con emociones\n\nCarpeta: {outputFolder}",
-                    "Descarga segmentada exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+                    LocalizationManager.Format("Msg_SegmentedExportSuccess", segments.Count, outputFolder),
+                    LocalizationManager.GetString("Msg_SegmentedExportTitle"),
+                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error durante la exportación: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    LocalizationManager.Format("Msg_DownloadError", ex.Message),
+                    LocalizationManager.GetString("Msg_ErrorTitle"),
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -1353,73 +1369,145 @@ namespace VnEmoteVoice.Console
 
         #endregion
 
-        #region Menú Idioma
+        #region Menú Idioma de la Interfaz (Localización i18n)
 
         private void MenuLangSpanish_Click(object sender, RoutedEventArgs e)
         {
-            SwitchLanguage("es");
+            LocalizationManager.SetLanguage("es");
+            ApplyLanguageToUI();
         }
 
         private void MenuLangEnglish_Click(object sender, RoutedEventArgs e)
         {
-            SwitchLanguage("en");
+            LocalizationManager.SetLanguage("en");
+            ApplyLanguageToUI();
         }
 
         private void MenuLangChinese_Click(object sender, RoutedEventArgs e)
         {
-            SwitchLanguage("zh");
+            LocalizationManager.SetLanguage("zh");
+            ApplyLanguageToUI();
         }
 
-        /// <summary>
-        /// Cambia el idioma seleccionado del sistema buscando la primera coincidencia que empiece con el prefijo dado.
-        /// Si está en modo de modelo externo, desmarca la casilla para volver al catálogo de idiomas.
-        /// </summary>
-        private void SwitchLanguage(string langPrefix)
+        private void MenuLangRussian_Click(object sender, RoutedEventArgs e)
         {
-            if (ChkExternalModel?.IsChecked == true)
-            {
-                ChkExternalModel.IsChecked = false;
-            }
-
-            if (CbLanguage == null || CbLanguage.Items.Count == 0) return;
-
-            string? targetLang = null;
-            foreach (var item in CbLanguage.Items)
-            {
-                if (item is string lang && lang.StartsWith(langPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    targetLang = lang;
-                    break;
-                }
-            }
-
-            if (targetLang != null)
-            {
-                CbLanguage.SelectedItem = targetLang;
-            }
-            else
-            {
-                MessageBox.Show(
-                    $"No se encontraron voces disponibles instaladas para el idioma seleccionado (prefijo \"{langPrefix}\").",
-                    "Idioma no disponible",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-            }
-
-            UpdateLanguageMenuCheckmarks(targetLang ?? CbLanguage.SelectedItem?.ToString() ?? "");
+            LocalizationManager.SetLanguage("ru");
+            ApplyLanguageToUI();
         }
 
         /// <summary>
-        /// Sincroniza las marcas de verificación de los elementos de idioma del menú según el idioma actual.
+        /// Aplica la traducción completa a todos los textos, títulos, menús, etiquetas y tooltips del sistema.
+        /// No modifica en ningún momento el idioma seleccionado en el selector de voz del motor TTS.
         /// </summary>
-        private void UpdateLanguageMenuCheckmarks(string currentLanguage)
+        private void ApplyLanguageToUI()
+        {
+            Title = LocalizationManager.GetString("Header_AppTitle");
+
+            // Menús
+            if (MenuIdiomaRoot != null) MenuIdiomaRoot.Header = LocalizationManager.GetString("Menu_Language");
+            if (MenuLangEs != null) MenuLangEs.Header = LocalizationManager.GetString("Menu_Language_Es");
+            if (MenuLangEn != null) MenuLangEn.Header = LocalizationManager.GetString("Menu_Language_En");
+            if (MenuLangZh != null) MenuLangZh.Header = LocalizationManager.GetString("Menu_Language_Zh");
+            if (MenuLangRu != null) MenuLangRu.Header = LocalizationManager.GetString("Menu_Language_Ru");
+
+            UpdateLanguageMenuCheckmarks();
+
+            if (MenuEdicionRoot != null) MenuEdicionRoot.Header = LocalizationManager.GetString("Menu_Edit");
+            if (MenuFind != null) MenuFind.Header = LocalizationManager.GetString("Menu_Edit_Find");
+            if (MenuFindNext != null) MenuFindNext.Header = LocalizationManager.GetString("Menu_Edit_FindNext");
+            if (MenuFindPrev != null) MenuFindPrev.Header = LocalizationManager.GetString("Menu_Edit_FindPrev");
+            if (MenuReplace != null) MenuReplace.Header = LocalizationManager.GetString("Menu_Edit_Replace");
+
+            if (MenuAyudaRoot != null) MenuAyudaRoot.Header = LocalizationManager.GetString("Menu_Help");
+            if (MenuAbout != null) MenuAbout.Header = LocalizationManager.GetString("Menu_Help_About");
+
+            // Barra superior (Header)
+            if (LblAppTitle != null) LblAppTitle.Text = LocalizationManager.GetString("Header_AppTitle");
+            if (LblAvatarTag != null) LblAvatarTag.Text = LocalizationManager.GetString("Header_AvatarTag");
+            if (TxtTransitionBadge != null) TxtTransitionBadge.Text = LocalizationManager.GetString("Header_TransitionBadge");
+            if (BadgeTransition != null) BadgeTransition.ToolTip = LocalizationManager.GetString("Header_TransitionBadge_Tooltip");
+            if (!_isPlaying && LblEmotionName != null) LblEmotionName.Text = LocalizationManager.GetString("Header_Emotion_Neutral");
+
+            if (BtnPlay != null) BtnPlay.ToolTip = LocalizationManager.GetString("Header_BtnPlay_Tooltip");
+            if (BtnPause != null) BtnPause.ToolTip = LocalizationManager.GetString("Header_BtnPause_Tooltip");
+            if (BtnStop != null) BtnStop.ToolTip = LocalizationManager.GetString("Header_BtnStop_Tooltip");
+
+            // Panel Izquierdo: Selectores
+            if (LblLanguageTitle != null)
+            {
+                LblLanguageTitle.Text = (ChkExternalModel?.IsChecked == true)
+                    ? LocalizationManager.GetString("Panel_ModelSelectorTitle")
+                    : LocalizationManager.GetString("Panel_LanguageTitle");
+            }
+            if (ChkExternalModel != null) ChkExternalModel.Content = LocalizationManager.GetString("Panel_ExternalModel");
+            if (LblVoiceTitle != null) LblVoiceTitle.Text = LocalizationManager.GetString("Panel_VoiceTitle");
+
+            // Panel Piper
+            if (LblPiperTitle != null) LblPiperTitle.Text = LocalizationManager.GetString("Piper_PanelTitle");
+            if (LblPiperOnnxTitle != null) LblPiperOnnxTitle.Text = LocalizationManager.GetString("Piper_OnnxTitle");
+            if (LblPiperJsonTitle != null) LblPiperJsonTitle.Text = LocalizationManager.GetString("Piper_JsonTitle");
+            if (BtnBrowseOnnx != null) BtnBrowseOnnx.Content = LocalizationManager.GetString("Piper_Browse");
+            if (BtnBrowseJson != null) BtnBrowseJson.Content = LocalizationManager.GetString("Piper_Browse");
+            if (string.IsNullOrEmpty(_piperOnnxPath) && LblOnnxPath != null)
+                LblOnnxPath.Text = LocalizationManager.GetString("Piper_NoFile");
+            if (string.IsNullOrEmpty(_piperJsonPath) && LblJsonPath != null)
+                LblJsonPath.Text = LocalizationManager.GetString("Piper_NoFile");
+
+            // Panel VoiceStudio
+            if (LblVoiceStudioTitle != null) LblVoiceStudioTitle.Text = LocalizationManager.GetString("VoiceStudio_PanelTitle");
+            if (LblVoiceStudioUrlTitle != null) LblVoiceStudioUrlTitle.Text = LocalizationManager.GetString("VoiceStudio_UrlTitle");
+            if (BtnConnectVoiceStudio != null) BtnConnectVoiceStudio.Content = LocalizationManager.GetString("VoiceStudio_Connect");
+            if (LblVoiceStudioProfileTitle != null) LblVoiceStudioProfileTitle.Text = LocalizationManager.GetString("VoiceStudio_ProfileTitle");
+            if (LblVoiceStudioStatus != null && !_voiceManager.HasVoiceStudioConfig)
+                LblVoiceStudioStatus.Text = LocalizationManager.GetString("VoiceStudio_Status_Disconnected");
+
+            if (ExpanderVoiceStudio != null) ExpanderVoiceStudio.Header = LocalizationManager.GetString("VoiceStudio_Settings_Expander");
+            if (LblGuidanceScaleTitle != null) LblGuidanceScaleTitle.Text = LocalizationManager.GetString("VoiceStudio_GuidanceScale");
+            if (LblTShiftTitle != null) LblTShiftTitle.Text = LocalizationManager.GetString("VoiceStudio_TShift");
+            if (LblPosTempTitle != null) LblPosTempTitle.Text = LocalizationManager.GetString("VoiceStudio_PosTemp");
+            if (LblClassTempTitle != null) LblClassTempTitle.Text = LocalizationManager.GetString("VoiceStudio_ClassTemp");
+            if (LblLayerPenaltyTitle != null) LblLayerPenaltyTitle.Text = LocalizationManager.GetString("VoiceStudio_LayerPenalty");
+            if (LblNumStepTitle != null) LblNumStepTitle.Text = LocalizationManager.GetString("VoiceStudio_NumStep");
+            if (ChkBalanceVolume != null) ChkBalanceVolume.Content = LocalizationManager.GetString("VoiceStudio_BalanceVolume");
+            if (ChkDenoise != null) ChkDenoise.Content = LocalizationManager.GetString("VoiceStudio_Denoise");
+            if (ChkPostprocess != null) ChkPostprocess.Content = LocalizationManager.GetString("VoiceStudio_Postprocess");
+
+            // Sliders de voz
+            if (LblSpeedTitle != null) LblSpeedTitle.Text = LocalizationManager.GetString("Slider_SpeedTitle");
+            if (LblPitchTitle != null) LblPitchTitle.Text = LocalizationManager.GetString("Slider_PitchTitle");
+            if (LblVolumeTitle != null) LblVolumeTitle.Text = LocalizationManager.GetString("Slider_VolumeTitle");
+
+            // Análisis de emociones
+            if (LblEmotionTitle != null) LblEmotionTitle.Text = LocalizationManager.GetString("Emotion_PanelTitle");
+            if (ChkUseDefaultEmotionModel != null) ChkUseDefaultEmotionModel.Content = LocalizationManager.GetString("Emotion_UseDefaultModel");
+            if (LblCustomEmotionJsonTitle != null) LblCustomEmotionJsonTitle.Text = LocalizationManager.GetString("Emotion_CustomJsonTitle");
+            if (BtnLoadEmotionModel != null) BtnLoadEmotionModel.Content = LocalizationManager.GetString("Emotion_Load");
+            if (TxtEmotionModelPath != null && TxtEmotionModelPath.Text == "Ningún archivo seleccionado")
+                TxtEmotionModelPath.Text = LocalizationManager.GetString("Emotion_NoFile");
+
+            // Botones inferiores y tooltips
+            if (BtnResetSettings != null) BtnResetSettings.ToolTip = LocalizationManager.GetString("Btn_Reset_Tooltip");
+            if (BtnDownloadAudio != null) BtnDownloadAudio.ToolTip = LocalizationManager.GetString("Btn_DownloadAudio_Tooltip");
+            if (BtnSegmentedDownload != null) BtnSegmentedDownload.ToolTip = LocalizationManager.GetString("Btn_SegmentedDownload_Tooltip");
+
+            UpdateCharCount();
+
+            // Actualizar ventana de búsqueda y reemplazo si está abierta
+            _findReplaceWindow?.ApplyLanguage();
+        }
+
+        /// <summary>
+        /// Sincroniza las marcas de verificación del menú de idiomas según el idioma de UI activo.
+        /// </summary>
+        private void UpdateLanguageMenuCheckmarks()
         {
             if (MenuLangEs == null || MenuLangEn == null || MenuLangZh == null) return;
 
-            string langLower = currentLanguage?.ToLowerInvariant() ?? "";
-            MenuLangEs.IsChecked = langLower.StartsWith("es");
-            MenuLangEn.IsChecked = langLower.StartsWith("en");
-            MenuLangZh.IsChecked = langLower.StartsWith("zh");
+            string cur = LocalizationManager.CurrentLanguage;
+            MenuLangEs.IsChecked = (cur == "es");
+            MenuLangEn.IsChecked = (cur == "en");
+            MenuLangZh.IsChecked = (cur == "zh");
+            if (MenuLangRu != null) MenuLangRu.IsChecked = (cur == "ru");
         }
 
         #endregion
@@ -1434,6 +1522,7 @@ namespace VnEmoteVoice.Console
             }
             else
             {
+                _findReplaceWindow.ApplyLanguage();
                 _findReplaceWindow.SetMode(isReplaceMode);
             }
 

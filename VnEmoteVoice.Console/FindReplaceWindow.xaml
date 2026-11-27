@@ -14,7 +14,7 @@
             <!-- Panel Izquierdo: Campos de entrada y opciones -->
             <StackPanel Grid.Column="0" Margin="0,0,15,0">
                 <!-- Campo Buscar -->
-                <TextBlock Text="Buscar:" Foreground="#cbd5e1" FontSize="12" Margin="0,0,0,4"/>
+                <TextBlock x:Name="LblFindTitle" Text="Buscar:" Foreground="#cbd5e1" FontSize="12" Margin="0,0,0,4"/>
                 <Border Background="#21262d" BorderBrush="#30363d" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,0,10">
                     <TextBox x:Name="TxtFind" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="13" 
                              VerticalAlignment="Center" KeyDown="TxtFind_KeyDown"/>
@@ -33,7 +33,7 @@
 
                 <!-- Dirección de búsqueda -->
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                    <TextBlock Text="Dirección:" Foreground="#94a3b8" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBlock x:Name="LblDirectionTitle" Text="Dirección:" Foreground="#94a3b8" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <RadioButton x:Name="RbDown" Content="Abajo" IsChecked="True" Foreground="#cbd5e1" FontSize="11" Margin="0,0,10,0" VerticalAlignment="Center"/>
                     <RadioButton x:Name="RbUp" Content="Arriba" Foreground="#cbd5e1" FontSize="11" VerticalAlignment="Center"/>
                 </StackPanel>
@@ -76,7 +76,7 @@
                     </Button.Resources>
                 </Button>
 
-                <Button Content="Cerrar" Height="30"
+                <Button x:Name="BtnClose" Content="Cerrar" Height="30"
                         Background="#30363d" Foreground="#94a3b8" FontSize="11"
                         BorderBrush="#444c56" BorderThickness="1" Cursor="Hand" Click="BtnClose_Click" IsCancel="True">
                     <Button.Resources>

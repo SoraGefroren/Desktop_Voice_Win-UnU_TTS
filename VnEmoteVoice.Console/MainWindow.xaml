@@ -223,25 +223,26 @@
 
         <!-- Barra de Menú Superior -->
         <Menu Grid.Row="0" Background="#161b22" Foreground="#e2e8f0" BorderBrush="#30363d" BorderThickness="0,0,0,1" Padding="4,2">
-            <!-- 1. Menú Idioma -->
-            <MenuItem Header="_Idioma">
+            <!-- 1. Menú Idioma de la Interfaz -->
+            <MenuItem x:Name="MenuIdiomaRoot" Header="_Idioma">
                 <MenuItem x:Name="MenuLangEs" Header="🇪🇸 Español" IsCheckable="True" IsChecked="True" Click="MenuLangSpanish_Click"/>
                 <MenuItem x:Name="MenuLangEn" Header="🇬🇧 English (Inglés)" IsCheckable="True" Click="MenuLangEnglish_Click"/>
                 <MenuItem x:Name="MenuLangZh" Header="🇨🇳 中文 (Chino)" IsCheckable="True" Click="MenuLangChinese_Click"/>
+                <MenuItem x:Name="MenuLangRu" Header="🇷🇺 Русский (Ruso)" IsCheckable="True" Click="MenuLangRussian_Click"/>
             </MenuItem>
 
             <!-- 2. Menú Edición (Búsqueda y reemplazo estilo Notepad) -->
-            <MenuItem Header="_Edición">
-                <MenuItem Header="_Buscar..." InputGestureText="Ctrl+F" Click="MenuFind_Click"/>
-                <MenuItem Header="Buscar _siguiente" InputGestureText="F3" Click="MenuFindNext_Click"/>
-                <MenuItem Header="Buscar _anterior" InputGestureText="Shift+F3" Click="MenuFindPrev_Click"/>
+            <MenuItem x:Name="MenuEdicionRoot" Header="_Edición">
+                <MenuItem x:Name="MenuFind" Header="_Buscar..." InputGestureText="Ctrl+F" Click="MenuFind_Click"/>
+                <MenuItem x:Name="MenuFindNext" Header="Buscar _siguiente" InputGestureText="F3" Click="MenuFindNext_Click"/>
+                <MenuItem x:Name="MenuFindPrev" Header="Buscar _anterior" InputGestureText="Shift+F3" Click="MenuFindPrev_Click"/>
                 <Separator/>
-                <MenuItem Header="_Reemplazar..." InputGestureText="Ctrl+H" Click="MenuReplace_Click"/>
+                <MenuItem x:Name="MenuReplace" Header="_Reemplazar..." InputGestureText="Ctrl+H" Click="MenuReplace_Click"/>
             </MenuItem>
 
             <!-- 3. Menú Ayuda -->
-            <MenuItem Header="A_yuda">
-                <MenuItem Header="_Acerca de Vn Emote Voice..." Click="MenuAbout_Click"/>
+            <MenuItem x:Name="MenuAyudaRoot" Header="A_yuda">
+                <MenuItem x:Name="MenuAbout" Header="_Acerca de Vn Emote Voice..." Click="MenuAbout_Click"/>
             </MenuItem>
         </Menu>
 
@@ -249,7 +250,7 @@
         <Grid Background="#6d28d9" Grid.Row="1">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0">
                 <Image Source="/__Assets/icon.png" Width="26" Height="26" Margin="0,0,10,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
-                <TextBlock Text="Vn Emote Voice (TTS)" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LblAppTitle" Text="Vn Emote Voice (TTS)" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -265,7 +266,7 @@
             <Border HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
                     Background="#1a152e" BorderBrush="#8b5cf6" BorderThickness="1" CornerRadius="8" Padding="12,5">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="AVATAR:" Foreground="#a78bfa" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock x:Name="LblAvatarTag" Text="AVATAR:" Foreground="#a78bfa" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <TextBlock x:Name="LblEmotionEmoji" Text="😐" FontSize="20" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <TextBlock x:Name="LblEmotionName" Text="Neutral" Foreground="White" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
                                MaxWidth="320" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
@@ -346,7 +347,7 @@
 
                             <!-- Selector de Voz (se oculta al seleccionar modelo externo) -->
                             <StackPanel x:Name="PanelVoiceSelector" Margin="0,0,0,15">
-                                <TextBlock Text="🎙 Voz" FontWeight="SemiBold" Foreground="#cbd5e1" Margin="0,0,0,5"/>
+                                <TextBlock x:Name="LblVoiceTitle" Text="🎙 Voz" FontWeight="SemiBold" Foreground="#cbd5e1" Margin="0,0,0,5"/>
                                 <ComboBox x:Name="CbVoices" Height="34" SelectionChanged="CbVoices_SelectionChanged"/>
                             </StackPanel>
 
@@ -354,10 +355,10 @@
                             <StackPanel x:Name="PanelPiperExterno" Visibility="Collapsed" Margin="0,0,0,15">
                                 <Border Background="#1e2633" BorderBrush="#7c3aed" BorderThickness="1" CornerRadius="6" Padding="10">
                                     <StackPanel>
-                                        <TextBlock Text="📂 Modelo Piper (Externo)" FontWeight="SemiBold" Foreground="#a78bfa" Margin="0,0,0,8"/>
+                                        <TextBlock x:Name="LblPiperTitle" Text="📂 Modelo Piper (Externo)" FontWeight="SemiBold" Foreground="#a78bfa" Margin="0,0,0,8"/>
 
                                         <!-- Archivo .onnx -->
-                                        <TextBlock Text="Archivo .onnx" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,3"/>
+                                        <TextBlock x:Name="LblPiperOnnxTitle" Text="Archivo .onnx" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,3"/>
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
@@ -377,7 +378,7 @@
                                         </Grid>
 
                                         <!-- Archivo .json -->
-                                        <TextBlock Text="Archivo .json" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,3"/>
+                                        <TextBlock x:Name="LblPiperJsonTitle" Text="Archivo .json" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,3"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
@@ -403,10 +404,10 @@
                             <StackPanel x:Name="PanelVoiceStudioExterno" Visibility="Collapsed" Margin="0,0,0,15">
                                 <Border Background="#1e2633" BorderBrush="#38bdf8" BorderThickness="1" CornerRadius="6" Padding="10">
                                     <StackPanel>
-                                        <TextBlock Text="🌐 VoiceStudio API (Externo)" FontWeight="SemiBold" Foreground="#38bdf8" Margin="0,0,0,8"/>
+                                        <TextBlock x:Name="LblVoiceStudioTitle" Text="🌐 VoiceStudio API (Externo)" FontWeight="SemiBold" Foreground="#38bdf8" Margin="0,0,0,8"/>
 
                                         <!-- Enlace al API -->
-                                        <TextBlock Text="Enlace del API" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,3"/>
+                                        <TextBlock x:Name="LblVoiceStudioUrlTitle" Text="Enlace del API" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,3"/>
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
@@ -426,53 +427,53 @@
                                         </Grid>
 
                                         <!-- Selector de Perfil / Voz disponible -->
-                                        <TextBlock Text="Perfil disponible" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,3"/>
+                                        <TextBlock x:Name="LblVoiceStudioProfileTitle" Text="Perfil disponible" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,3"/>
                                         <ComboBox x:Name="CbVoiceStudioProfiles" Height="30" Margin="0,0,0,6" SelectionChanged="CbVoiceStudioProfiles_SelectionChanged"/>
 
                                         <!-- Estado de conexión -->
                                         <TextBlock x:Name="LblVoiceStudioStatus" Text="No conectado" Foreground="#64748b" FontSize="11" TextTrimming="CharacterEllipsis"/>
 
                                         <!-- Ajustes avanzados del modelo (VoiceStudio) -->
-                                        <Expander Header="⚙ Ajustes de VoiceStudio" Foreground="#38bdf8" FontSize="11" Margin="0,8,0,0" IsExpanded="False">
+                                        <Expander x:Name="ExpanderVoiceStudio" Header="⚙ Ajustes de VoiceStudio" Foreground="#38bdf8" FontSize="11" Margin="0,8,0,0" IsExpanded="False">
                                             <StackPanel Margin="0,6,0,0">
                                                 <!-- Influencia de la indicación (guidance_scale) -->
                                                 <Grid Margin="0,0,0,2">
-                                                    <TextBlock Text="Influencia de la indicación" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblGuidanceScaleTitle" Text="Influencia de la indicación" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
                                                     <TextBlock x:Name="LblGuidanceScale" Text="2.0" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
                                                 </Grid>
                                                 <Slider x:Name="SliderGuidanceScale" Minimum="0.5" Maximum="5.0" Value="2.0" TickFrequency="0.1" IsSnapToTickEnabled="True" Margin="0,0,0,6" ValueChanged="SliderVoiceStudio_ValueChanged"/>
 
                                                 <!-- Momento del refinamiento (t_shift) -->
                                                 <Grid Margin="0,0,0,2">
-                                                    <TextBlock Text="Momento del refinamiento" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblTShiftTitle" Text="Momento del refinamiento" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
                                                     <TextBlock x:Name="LblTShift" Text="0.10" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
                                                 </Grid>
                                                 <Slider x:Name="SliderTShift" Minimum="0.01" Maximum="0.50" Value="0.10" TickFrequency="0.01" IsSnapToTickEnabled="True" Margin="0,0,0,6" ValueChanged="SliderVoiceStudio_ValueChanged"/>
 
                                                 <!-- Variación del orden de muestreo (position_temperature) -->
                                                 <Grid Margin="0,0,0,2">
-                                                    <TextBlock Text="Variación del orden de muestreo" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblPosTempTitle" Text="Variación del orden de muestreo" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
                                                     <TextBlock x:Name="LblPosTemp" Text="5.0" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
                                                 </Grid>
                                                 <Slider x:Name="SliderPosTemp" Minimum="0.0" Maximum="10.0" Value="5.0" TickFrequency="0.5" IsSnapToTickEnabled="True" Margin="0,0,0,6" ValueChanged="SliderVoiceStudio_ValueChanged"/>
 
                                                 <!-- Variación del sonido (class_temperature) -->
                                                 <Grid Margin="0,0,0,2">
-                                                    <TextBlock Text="Variación del sonido" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblClassTempTitle" Text="Variación del sonido" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
                                                     <TextBlock x:Name="LblClassTemp" Text="0.0" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
                                                 </Grid>
                                                 <Slider x:Name="SliderClassTemp" Minimum="0.0" Maximum="5.0" Value="0.0" TickFrequency="0.1" IsSnapToTickEnabled="True" Margin="0,0,0,6" ValueChanged="SliderVoiceStudio_ValueChanged"/>
 
                                                 <!-- Equilibrio entre grueso y fino (layer_penalty_factor) -->
                                                 <Grid Margin="0,0,0,2">
-                                                    <TextBlock Text="Equilibrio entre grueso y fino" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblLayerPenaltyTitle" Text="Equilibrio entre grueso y fino" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
                                                     <TextBlock x:Name="LblLayerPenalty" Text="5.0" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
                                                 </Grid>
                                                 <Slider x:Name="SliderLayerPenalty" Minimum="0.0" Maximum="10.0" Value="5.0" TickFrequency="0.5" IsSnapToTickEnabled="True" Margin="0,0,0,6" ValueChanged="SliderVoiceStudio_ValueChanged"/>
 
                                                 <!-- Refinamiento de voz (num_step) -->
                                                 <Grid Margin="0,0,0,2">
-                                                    <TextBlock Text="Refinamiento de voz (pasos)" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
+                                                    <TextBlock x:Name="LblNumStepTitle" Text="Refinamiento de voz (pasos)" Foreground="#94a3b8" FontSize="10" HorizontalAlignment="Left"/>
                                                     <TextBlock x:Name="LblNumStep" Text="16" Foreground="#38bdf8" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
                                                 </Grid>
                                                 <Slider x:Name="SliderNumStep" Minimum="4" Maximum="32" Value="16" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" ValueChanged="SliderVoiceStudio_ValueChanged"/>
@@ -489,28 +490,28 @@
 
                             <!-- Control de Velocidad -->
                             <Grid Margin="0,0,0,5">
-                                <TextBlock Text="⚡ Velocidad" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="LblSpeedTitle" Text="⚡ Velocidad" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
                                 <TextBlock x:Name="LblSpeed" Text="1.0x" Foreground="#38bdf8" HorizontalAlignment="Right" FontWeight="Bold"/>
                             </Grid>
                             <Slider x:Name="SliderSpeed" Minimum="0.5" Maximum="2.0" Value="1.0" TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="SliderSpeed_ValueChanged" Margin="0,0,0,15"/>
 
                             <!-- Control de Tono -->
                             <Grid Margin="0,0,0,5">
-                                <TextBlock Text="🎵 Tono" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="LblPitchTitle" Text="🎵 Tono" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
                                 <TextBlock x:Name="LblPitch" Text="1.0" Foreground="#38bdf8" HorizontalAlignment="Right" FontWeight="Bold"/>
                             </Grid>
                             <Slider x:Name="SliderPitch" Minimum="0.5" Maximum="1.5" Value="1.0" TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="SliderPitch_ValueChanged" Margin="0,0,0,15"/>
 
                             <!-- Control de Volumen -->
                             <Grid Margin="0,0,0,5">
-                                <TextBlock Text="🔊 Volumen" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="LblVolumeTitle" Text="🔊 Volumen" FontWeight="SemiBold" Foreground="#cbd5e1" HorizontalAlignment="Left"/>
                                 <TextBlock x:Name="LblVolume" Text="100%" Foreground="#38bdf8" HorizontalAlignment="Right" FontWeight="Bold"/>
                             </Grid>
                             <Slider x:Name="SliderVolume" Minimum="0" Maximum="100" Value="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SliderVolume_ValueChanged" Margin="0,0,0,20"/>
 
                             <!-- Control de Modelo de Emociones -->
                             <StackPanel Margin="0,10,0,0">
-                                <TextBlock Text="🧠 Análisis de Emociones" FontWeight="SemiBold" Foreground="#cbd5e1" Margin="0,0,0,5"/>
+                                <TextBlock x:Name="LblEmotionTitle" Text="🧠 Análisis de Emociones" FontWeight="SemiBold" Foreground="#cbd5e1" Margin="0,0,0,5"/>
                                 <CheckBox x:Name="ChkUseDefaultEmotionModel"
                                           Content="Usar modelo en Español (por defecto)"
                                           Foreground="#cbd5e1"
@@ -519,7 +520,7 @@
                                           Checked="ChkUseDefaultEmotionModel_Changed"
                                           Unchecked="ChkUseDefaultEmotionModel_Changed"/>
                                 <StackPanel x:Name="PanelCustomEmotionModel" Visibility="Collapsed">
-                                    <TextBlock Text="📂 Archivo JSON de emociones:" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="LblCustomEmotionJsonTitle" Text="📂 Archivo JSON de emociones:" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,4"/>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>

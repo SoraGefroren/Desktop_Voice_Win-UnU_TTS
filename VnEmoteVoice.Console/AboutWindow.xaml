@@ -16,10 +16,10 @@
             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
                 <Image Source="/__Assets/icon.png" Width="48" Height="48" Margin="0,0,15,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Vn Emote Voice (TTS)" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                    <TextBlock Text="Versión 1.0 — Multiplataforma (Windows | Linux | macOS)" FontSize="12" Foreground="#94a3b8" Margin="0,2,0,0"/>
+                    <TextBlock x:Name="LblAboutTitle" Text="Vn Emote Voice (TTS)" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock x:Name="LblVersion" Text="Versión 1.0 — Multiplataforma (Windows | Linux | macOS)" FontSize="12" Foreground="#94a3b8" Margin="0,2,0,0"/>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Text="Autor: " FontSize="13" Foreground="#cbd5e1"/>
+                        <TextBlock x:Name="LblAuthorLabel" Text="Autor: " FontSize="13" Foreground="#cbd5e1"/>
                         <TextBlock Text="Sora Gefroren" FontSize="13" FontWeight="Bold" Foreground="#a78bfa"/>
                     </StackPanel>
                 </StackPanel>
@@ -29,11 +29,11 @@
             <Border Grid.Row="1" Background="#21262d" BorderBrush="#30363d" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,15">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock Text="Descripción del Sistema:" FontWeight="SemiBold" Foreground="#38bdf8" FontSize="12" Margin="0,0,0,6"/>
-                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#e2e8f0" LineHeight="18">
+                        <TextBlock x:Name="LblDescTitle" Text="Descripción del Sistema:" FontWeight="SemiBold" Foreground="#38bdf8" FontSize="12" Margin="0,0,0,6"/>
+                        <TextBlock x:Name="TxtDesc1" TextWrapping="Wrap" FontSize="12" Foreground="#e2e8f0" LineHeight="18">
                             Vn Emote Voice es un sistema avanzado de Síntesis de Voz (TTS) y Análisis Emocional diseñado para la creación de narradores virtuales, novelas visuales interactivas y avatares VTuber (Live2D, VRoid, 3D).
                         </TextBlock>
-                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#94a3b8" LineHeight="18" Margin="0,8,0,0">
+                        <TextBlock x:Name="TxtDesc2" TextWrapping="Wrap" FontSize="12" Foreground="#94a3b8" LineHeight="18" Margin="0,8,0,0">
                             Integra motores de voz locales nativos por sistema operativo (Windows WinRT, macOS say, Linux speech-dispatcher), modelos neuronales locales ONNX de última generación (Kokoro v1.0 y Piper), VoiceStudio API, y un motor lingüístico con 27 emociones calibradas y detección de giros dramáticos en tiempo real.
                         </TextBlock>
                     </StackPanel>
@@ -42,8 +42,8 @@
 
             <!-- Pie de ventana: Licencia y Botón Aceptar -->
             <Grid Grid.Row="2">
-                <TextBlock Text="Licencia MIT — Código Abierto" FontSize="11" Foreground="#64748b" VerticalAlignment="Center" HorizontalAlignment="Left"/>
-                <Button Content="Aceptar" Width="90" Height="32" Background="#7c3aed" Foreground="White" FontWeight="Bold"
+                <TextBlock x:Name="LblLicense" Text="Licencia MIT — Código Abierto" FontSize="11" Foreground="#64748b" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                <Button x:Name="BtnClose" Content="Aceptar" Width="90" Height="32" Background="#7c3aed" Foreground="White" FontWeight="Bold"
                         HorizontalAlignment="Right" Click="BtnClose_Click" Cursor="Hand">
                     <Button.Resources>
                         <Style TargetType="Border">

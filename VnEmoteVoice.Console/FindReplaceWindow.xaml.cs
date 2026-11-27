@@ -8,18 +8,43 @@ namespace VnEmoteVoice.Console
     public partial class FindReplaceWindow : Window
     {
         private readonly MainWindow _mainWindow;
+        private bool _isReplaceMode;
 
         public FindReplaceWindow(MainWindow mainWindow, bool isReplaceMode = false)
         {
             _mainWindow = mainWindow ?? throw new ArgumentNullException(nameof(mainWindow));
             Owner = mainWindow;
             InitializeComponent();
+            ApplyLanguage();
             SetMode(isReplaceMode);
+        }
+
+        public void ApplyLanguage()
+        {
+            Title = _isReplaceMode 
+                ? LocalizationManager.GetString("FindReplace_Title_Replace") 
+                : LocalizationManager.GetString("FindReplace_Title_Find");
+
+            LblFindTitle.Text = LocalizationManager.GetString("FindReplace_LblFind");
+            LblReplaceTitle.Text = LocalizationManager.GetString("FindReplace_LblReplace");
+            ChkMatchCase.Content = LocalizationManager.GetString("FindReplace_ChkMatchCase");
+            ChkWholeWord.Content = LocalizationManager.GetString("FindReplace_ChkWholeWord");
+            LblDirectionTitle.Text = LocalizationManager.GetString("FindReplace_LblDirection");
+            RbDown.Content = LocalizationManager.GetString("FindReplace_RbDown");
+            RbUp.Content = LocalizationManager.GetString("FindReplace_RbUp");
+            BtnFindNext.Content = LocalizationManager.GetString("FindReplace_BtnFindNext");
+            BtnFindPrev.Content = LocalizationManager.GetString("FindReplace_BtnFindPrev");
+            BtnReplace.Content = LocalizationManager.GetString("FindReplace_BtnReplace");
+            BtnReplaceAll.Content = LocalizationManager.GetString("FindReplace_BtnReplaceAll");
+            BtnClose.Content = LocalizationManager.GetString("FindReplace_BtnClose");
         }
 
         public void SetMode(bool isReplaceMode)
         {
-            Title = isReplaceMode ? "Reemplazar" : "Buscar";
+            _isReplaceMode = isReplaceMode;
+            Title = isReplaceMode 
+                ? LocalizationManager.GetString("FindReplace_Title_Replace") 
+                : LocalizationManager.GetString("FindReplace_Title_Find");
             LblStatus.Text = "";
 
             if (isReplaceMode)
@@ -63,18 +88,18 @@ namespace VnEmoteVoice.Console
             string query = TxtFind.Text;
             if (string.IsNullOrEmpty(query))
             {
-                ShowStatus("Ingresa el texto a buscar.", isError: true);
+                ShowStatus(LocalizationManager.GetString("FindReplace_Status_EnterText"), isError: true);
                 return;
             }
 
             bool found = _mainWindow.FindTextInEditor(query, MatchCase, WholeWord, searchDown);
             if (!found)
             {
-                ShowStatus($"No se encuentra \"{query}\".", isError: true);
+                ShowStatus(LocalizationManager.Format("FindReplace_Status_NotFound", query), isError: true);
             }
             else
             {
-                ShowStatus("Coincidencia encontrada.", isError: false);
+                ShowStatus(LocalizationManager.GetString("FindReplace_Status_Found"), isError: false);
             }
         }
 
@@ -83,18 +108,18 @@ namespace VnEmoteVoice.Console
             string query = TxtFind.Text;
             if (string.IsNullOrEmpty(query))
             {
-                ShowStatus("Ingresa el texto a buscar.", isError: true);
+                ShowStatus(LocalizationManager.GetString("FindReplace_Status_EnterText"), isError: true);
                 return;
             }
 
             bool replaced = _mainWindow.ReplaceTextInEditor(query, TxtReplace.Text, MatchCase, WholeWord);
             if (!replaced)
             {
-                ShowStatus($"No se encuentra \"{query}\" para reemplazar.", isError: true);
+                ShowStatus(LocalizationManager.Format("FindReplace_Status_NotFound", query), isError: true);
             }
             else
             {
-                ShowStatus("Texto reemplazado.", isError: false);
+                ShowStatus(LocalizationManager.GetString("FindReplace_Status_Replaced"), isError: false);
             }
         }
 
@@ -103,18 +128,18 @@ namespace VnEmoteVoice.Console
             string query = TxtFind.Text;
             if (string.IsNullOrEmpty(query))
             {
-                ShowStatus("Ingresa el texto a buscar.", isError: true);
+                ShowStatus(LocalizationManager.GetString("FindReplace_Status_EnterText"), isError: true);
                 return;
             }
 
             int count = _mainWindow.ReplaceAllTextInEditor(query, TxtReplace.Text, MatchCase, WholeWord);
             if (count == 0)
             {
-                ShowStatus($"No se encontraron coincidencias para \"{query}\".", isError: true);
+                ShowStatus(LocalizationManager.Format("FindReplace_Status_NoMatchesToReplace", query), isError: true);
             }
             else
             {
-                ShowStatus($"Se reemplazaron {count} coincidencia(s).", isError: false);
+                ShowStatus(LocalizationManager.Format("FindReplace_Status_ReplacedAll", count), isError: false);
             }
         }
 
