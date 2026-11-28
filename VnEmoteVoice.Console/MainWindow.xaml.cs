@@ -16,6 +16,21 @@ namespace VnEmoteVoice.Console
 {
     public partial class MainWindow : Window
     {
+        private static readonly Brush NormalForeground;
+        private static readonly Brush ActiveForeground = Brushes.White;
+        private static readonly Brush ActiveBackground;
+
+        static MainWindow()
+        {
+            var norm = new SolidColorBrush(Color.FromArgb(220, 240, 246, 252));
+            norm.Freeze();
+            NormalForeground = norm;
+
+            var act = new SolidColorBrush(Color.FromRgb(124, 58, 237));
+            act.Freeze();
+            ActiveBackground = act;
+        }
+
         private readonly VoiceManager _voiceManager;
         private List<TextSegment> _segments = new();
         private int _currentSegmentIndex = 0;
@@ -729,91 +744,109 @@ namespace VnEmoteVoice.Console
 
         private async Task PlaySegmentsLoop()
         {
-            while (_currentSegmentIndex < _segments.Count && _isPlaying)
+            int segmentsPlayedCount = 0;
+
+            try
             {
-                _jumpRequested = false;
-                int activeIndex = _currentSegmentIndex;
-                var segment = _segments[activeIndex];
-
-                if (string.IsNullOrWhiteSpace(segment.Text))
+                while (_currentSegmentIndex < _segments.Count && _isPlaying)
                 {
-                    _currentSegmentIndex++;
-                    continue;
-                }
+                    _jumpRequested = false;
+                    int activeIndex = _currentSegmentIndex;
+                    var segment = _segments[activeIndex];
 
-                if (!ValidateReadyToSynthesize())
-                {
-                    _isPlaying = false;
-                    ResetToNeutralState();
-                    break;
-                }
-
-                string selectedLang = GetCurrentSelectedLanguage();
-                string selectedVoice = GetCurrentSelectedVoice();
-                float speed = (float)SliderSpeed.Value;
-                float pitch = (float)SliderPitch.Value;
-                float volume = (float)(SliderVolume.Value / 100.0);
-
-                LblEmotionEmoji.Text = segment.Emoji;
-                LblEmotionName.Text = segment.Emotion;
-
-                if (segment.HasTransition)
-                {
-                    BadgeTransition.Visibility = Visibility.Visible;
-                    BadgeTransition.ToolTip = $"Transición ({segment.Transition.TransitionType}): {segment.Transition.FromEmotion} ({segment.Transition.FromEmoji}) ➔ {segment.Transition.ToEmotion} ({segment.Transition.ToEmoji})";
-                }
-                else
-                {
-                    BadgeTransition.Visibility = Visibility.Collapsed;
-                }
-
-                HighlightSegment(activeIndex);
-
-                string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"segment_{activeIndex}.wav");
-                await _voiceManager.SynthesizeSpeechAsync(segment.Text, tempPath, selectedVoice, selectedLang, speed, pitch, volume);
-
-                if (!_isPlaying) break;
-                if (_jumpRequested) continue;
-
-                // Asegurar que el texto resaltado esté visible justo antes de comenzar a reproducir
-                ScrollActiveSegmentIntoView(activeIndex);
-
-                _voiceManager.PlayAudio(tempPath, volume);
-
-                await Task.Delay(250);
-                while (_voiceManager.IsPlaying && !_isPaused && _isPlaying && !_jumpRequested)
-                {
-                    // Mantener el texto resaltado visible de forma continua durante la reproducción
-                    ScrollActiveSegmentIntoView(activeIndex);
-                    await Task.Delay(150);
-                }
-
-                if (!_isPlaying) break;
-
-                if (_jumpRequested)
-                {
-                    continue;
-                }
-
-                if (_isPaused)
-                {
-                    while (_isPaused && _isPlaying && !_jumpRequested)
+                    if (string.IsNullOrWhiteSpace(segment.Text))
                     {
-                        await Task.Delay(100);
+                        _currentSegmentIndex++;
+                        continue;
                     }
+
+                    if (!ValidateReadyToSynthesize())
+                    {
+                        _isPlaying = false;
+                        ResetToNeutralState();
+                        break;
+                    }
+
+                    string selectedLang = GetCurrentSelectedLanguage();
+                    string selectedVoice = GetCurrentSelectedVoice();
+                    float speed = (float)SliderSpeed.Value;
+                    float pitch = (float)SliderPitch.Value;
+                    float volume = (float)(SliderVolume.Value / 100.0);
+
+                    LblEmotionEmoji.Text = segment.Emoji;
+                    LblEmotionName.Text = segment.Emotion;
+
+                    if (segment.HasTransition)
+                    {
+                        BadgeTransition.Visibility = Visibility.Visible;
+                        BadgeTransition.ToolTip = $"Transición ({segment.Transition.TransitionType}): {segment.Transition.FromEmotion} ({segment.Transition.FromEmoji}) ➔ {segment.Transition.ToEmotion} ({segment.Transition.ToEmoji})";
+                    }
+                    else
+                    {
+                        BadgeTransition.Visibility = Visibility.Collapsed;
+                    }
+
+                    HighlightSegment(activeIndex);
+
+                    // Búfer circular de archivos temporales (máximo 5 archivos reciclados) para no llenar el disco ni saturar manejadores
+                    string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"segment_{activeIndex % 5}.wav");
+                    await _voiceManager.SynthesizeSpeechAsync(segment.Text, tempPath, selectedVoice, selectedLang, speed, pitch, volume);
+
                     if (!_isPlaying) break;
                     if (_jumpRequested) continue;
+
+                    // Asegurar que el texto resaltado esté visible justo antes de comenzar a reproducir
+                    ScrollActiveSegmentIntoView(activeIndex);
+
+                    _voiceManager.PlayAudio(tempPath, volume);
+
+                    await Task.Delay(250);
+                    while (_voiceManager.IsPlaying && !_isPaused && _isPlaying && !_jumpRequested)
+                    {
+                        // Mantener el texto resaltado visible de forma continua durante la reproducción
+                        ScrollActiveSegmentIntoView(activeIndex);
+                        await Task.Delay(150);
+                    }
+
+                    if (!_isPlaying) break;
+
+                    if (_jumpRequested)
+                    {
+                        continue;
+                    }
+
+                    if (_isPaused)
+                    {
+                        while (_isPaused && _isPlaying && !_jumpRequested)
+                        {
+                            await Task.Delay(100);
+                        }
+                        if (!_isPlaying) break;
+                        if (_jumpRequested) continue;
+                    }
+
+                    _currentSegmentIndex++;
+                    segmentsPlayedCount++;
+
+                    // Cada 25 segmentos en sesiones prolongadas, optimizar la recolección de memoria
+                    if (segmentsPlayedCount % 25 == 0)
+                    {
+                        GC.Collect(1, GCCollectionMode.Optimized);
+                    }
                 }
-
-                _currentSegmentIndex++;
             }
-
-            ResetToNeutralState();
+            finally
+            {
+                ResetToNeutralState();
+                CleanupTempSegmentFiles();
+            }
         }
 
         private void HighlightSegment(int activeIndex)
         {
             _isHighlighting = true;
+            bool wasUndo = RtbInput.IsUndoEnabled;
+            RtbInput.IsUndoEnabled = false;
             try
             {
                 RtbInput.Document.Blocks.Clear();
@@ -821,11 +854,6 @@ namespace VnEmoteVoice.Console
 
                 int cursor = 0;
                 int textLength = _fullPlainText.Length;
-
-                Brush normalForeground = new SolidColorBrush(Color.FromArgb(220, 240, 246, 252));
-                Brush activeForeground = Brushes.White;
-                // Púrpura vibrante #7c3aed para que el texto resaltado se distinga claramente en todo momento
-                Brush activeBackground = new SolidColorBrush(Color.FromRgb(124, 58, 237));
 
                 for (int i = 0; i < _segments.Count; i++)
                 {
@@ -835,13 +863,13 @@ namespace VnEmoteVoice.Console
                     {
                         int gapLength = Math.Min(seg.StartIndex - cursor, textLength - cursor);
                         string gapText = _fullPlainText.Substring(cursor, gapLength);
-                        AppendTextWithLineBreaks(p, gapText, null, normalForeground, null);
+                        AppendTextWithLineBreaks(p, gapText, null, NormalForeground, null);
                         cursor = seg.StartIndex;
                     }
 
                     bool isActive = (i == activeIndex);
-                    Brush? bg = isActive ? activeBackground : null;
-                    Brush fg = isActive ? activeForeground : normalForeground;
+                    Brush? bg = isActive ? ActiveBackground : null;
+                    Brush fg = isActive ? ActiveForeground : NormalForeground;
                     FontWeight fw = isActive ? FontWeights.Bold : FontWeights.Normal;
 
                     AppendTextWithLineBreaks(p, seg.Text, bg, fg, i, fw);
@@ -851,7 +879,7 @@ namespace VnEmoteVoice.Console
                 if (cursor < textLength)
                 {
                     string trailingText = _fullPlainText.Substring(cursor);
-                    AppendTextWithLineBreaks(p, trailingText, null, normalForeground, null);
+                    AppendTextWithLineBreaks(p, trailingText, null, NormalForeground, null);
                 }
 
                 RtbInput.Document.Blocks.Add(p);
@@ -861,6 +889,7 @@ namespace VnEmoteVoice.Console
             }
             finally
             {
+                RtbInput.IsUndoEnabled = wasUndo;
                 _isHighlighting = false;
             }
         }
@@ -1086,6 +1115,8 @@ namespace VnEmoteVoice.Console
                 BadgeTransition.Visibility = Visibility.Collapsed;
 
                 _isHighlighting = true;
+                bool wasUndo = RtbInput.IsUndoEnabled;
+                RtbInput.IsUndoEnabled = false;
                 try
                 {
                     RtbInput.Document.Blocks.Clear();
@@ -1095,9 +1126,28 @@ namespace VnEmoteVoice.Console
                 }
                 finally
                 {
+                    RtbInput.IsUndoEnabled = wasUndo;
                     _isHighlighting = false;
                 }
             });
+
+            CleanupTempSegmentFiles();
+        }
+
+        /// <summary>
+        /// Elimina los archivos de audio temporales residuales generados durante la síntesis y reproducción.
+        /// </summary>
+        private static void CleanupTempSegmentFiles()
+        {
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                foreach (var file in Directory.EnumerateFiles(baseDir, "segment_*.wav"))
+                {
+                    try { File.Delete(file); } catch { }
+                }
+            }
+            catch { }
         }
 
         /// <summary>
@@ -1816,6 +1866,7 @@ namespace VnEmoteVoice.Console
             }
             catch { }
 
+            CleanupTempSegmentFiles();
             _voiceManager.Dispose();
             base.OnClosed(e);
         }

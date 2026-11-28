@@ -565,7 +565,7 @@
             <Border Grid.Column="1" Background="#161b22" BorderBrush="#30363d" BorderThickness="1" CornerRadius="8" Padding="5">
                 <Grid>
                     <RichTextBox x:Name="RtbInput" AcceptsReturn="True" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="15" Padding="10" 
-                        VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" UndoLimit="50"
                         TextChanged="RtbInput_TextChanged" PreviewMouseLeftButtonDown="RtbInput_PreviewMouseLeftButtonDown" CaretBrush="White"/>
                     
                     <Border Background="#21262d" CornerRadius="6" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10,0,25,10" Padding="8,4" IsHitTestVisible="False">
